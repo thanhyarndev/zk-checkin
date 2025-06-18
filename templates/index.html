@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>RFID Check-In System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      margin-bottom: 25px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 2.5em;
+      font-weight: 300;
+    }
+    .header p {
+      margin: 0;
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
+    .status {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      border-left: 5px solid #4CAF50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .status h3 {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 1.4em;
+    }
+    .status p {
+      margin: 8px 0;
+      font-size: 1.1em;
+      color: #555;
+    }
+    .status strong {
+      color: #333;
+      font-weight: 600;
+    }
+    .checkin-table {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .checkin-table h3 {
+      margin: 0;
+      padding: 25px 25px 20px 25px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      color: #333;
+      font-size: 1.4em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background-color: #f8f9fa;
+      padding: 18px 25px;
+      text-align: left;
+      border-bottom: 2px solid #dee2e6;
+      font-weight: 600;
+      color: #495057;
+      font-size: 1.1em;
+    }
+    td {
+      padding: 18px 25px;
+      border-bottom: 1px solid #e9ecef;
+      color: #555;
+    }
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .status-in { background-color: #28a745; }
+    .status-out { background-color: #dc3545; }
+    .status-unknown { background-color: #6c757d; }
+    .new-update {
+      animation: highlight 2s ease-out;
+    }
+    @keyframes highlight {
+      0% { background-color: #d4edda; }
+      100% { background-color: transparent; }
+    }
+    .debug-info {
+      background: #e9ecef;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .no-records {
+      text-align: center;
+      padding: 60px 40px;
+      color: #6c757d;
+      font-style: italic;
+      font-size: 1.1em;
+    }
+    .time-cell {
+      font-family: 'Courier New', monospace;
+      font-size: 1em;
+      font-weight: 500;
+    }
+    .employee-name {
+      font-weight: 600;
+      color: #495057;
+      font-size: 1.1em;
+    }
+    .action-button {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px 0;
+      font-size: 1em;
+      font-weight: 500;
+      transition: background-color 0.3s ease;
+    }
+    .action-button:hover {
+      background: #c82333;
+    }
+    .action-button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏢 RFID Check-In System</h1>
+    <p>Employee attendance tracking - First Check-in & Last Check-out</p>
+  </div>
+
+  <div class="status">
+    <h3>📊 System Status</h3>
+    <p><strong>Date:</strong> <span id="current-date"></span></p>
+    <p><strong>Time:</strong> <span id="current-time"></span></p>
+    <p><strong>Connection:</strong> <span id="connection-status">Connecting...</span></p>
+    <p><strong>Employees Today:</strong> <span id="total-employees">{{ records|length }}</span></p>
+    <p><strong>Auto-refresh:</strong> <span id="auto-refresh-status">Active ✅</span></p>
+    <p><strong>Last Update:</strong> <span id="last-update">Never</span></p>
+    <button class="action-button" onclick="clearTable()">🗑️ Clear Table</button>
+  </div>
+
+  <div class="checkin-table">
+    <h3>📋 Today's Attendance</h3>
+    {% if records %}
+    <table id="attendance-table">
+      <thead>
+        <tr>
+          <th>👤 Employee</th>
+          <th>🕐 First Check-in</th>
+          <th>🚪 Last Check-out</th>
+          <th>📊 Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in records %}
+        <tr data-employee="{{ record.name }}">
+          <td class="employee-name">{{ record.name }}</td>
+          <td class="time-cell">{{ record.first_checkin or 'Not checked in' }}</td>
+          <td class="time-cell">{{ record.last_checkout or 'Not checked out' }}</td>
+          <td>
+            {% if record.first_checkin and record.last_checkout %}
+              <span class="status-indicator status-out"></span>Checked Out
+            {% elif record.first_checkin %}
+              <span class="status-indicator status-in"></span>Checked In
+            {% else %}
+              <span class="status-indicator status-unknown"></span>Unknown
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="no-records">
+      <p>No employees have checked in today yet.</p>
+      <p>Place an RFID tag near the reader to test the system.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <script>
+    // Update current date
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString();
+
+    // Socket.IO auto-connect
+    var socket = io();
+    var connectionStatus = document.getElementById('connection-status');
+    var totalEmployees = document.getElementById('total-employees');
+
+    // Auto-refresh attendance data every second
+    function refreshAttendanceData() {
+      fetch('/get_attendance_data')
+        .then(response => response.json())
+        .then(data => {
+          updateAttendanceTable(data);
+          document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        })
+        .catch(error => {
+          console.error('Auto-refresh error:', error);
+        });
+    }
+
+    function updateAttendanceTable(records) {
+      var tbody = document.querySelector('#attendance-table tbody');
+      if (!tbody) {
+        // Create table if it doesn't exist
+        var noRecords = document.querySelector('.no-records');
+        if (noRecords) noRecords.remove();
+        var table = document.createElement('table');
+        table.id = 'attendance-table';
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>👤 Employee</th>
+              <th>🕐 First Check-in</th>
+              <th>🚪 Last Check-out</th>
+              <th>📊 Status</th>
+            </tr>
+          </thead><tbody></tbody>`;
+        document.querySelector('.checkin-table').appendChild(table);
+        tbody = table.querySelector('tbody');
+      }
+
+      // Clear existing rows
+      tbody.innerHTML = '';
+
+      if (records && records.length > 0) {
+        records.forEach(function(record) {
+          var row = document.createElement('tr');
+          row.setAttribute('data-employee', record.name);
+          row.innerHTML = `
+            <td class="employee-name">${record.name}</td>
+            <td class="time-cell">${record.first_checkin || 'Not checked in'}</td>
+            <td class="time-cell">${record.last_checkout || 'Not checked out'}</td>
+            <td>
+              ${record.first_checkin && record.last_checkout ? 
+                '<span class="status-indicator status-out"></span>Checked Out' :
+                record.first_checkin ? 
+                '<span class="status-indicator status-in"></span>Checked In' :
+                '<span class="status-indicator status-unknown"></span>Unknown'
+              }
+            </td>`;
+          tbody.appendChild(row);
+        });
+      } else {
+        // Show no records message
+        var noRecords = document.querySelector('.no-records');
+        if (!noRecords) {
+          var div = document.createElement('div');
+          div.className = 'no-records';
+          div.innerHTML = `
+            <p>No employees have checked in today yet.</p>
+            <p>Place an RFID tag near the reader to test the system.</p>`;
+          document.querySelector('.checkin-table').appendChild(div);
+        }
+      }
+
+      // Update employee count
+      totalEmployees.textContent = records ? records.length : 0;
+    }
+
+    // Socket event handlers
+    socket.on('connect', function() {
+      connectionStatus.textContent = 'Connected ✅';
+      connectionStatus.style.color = '#28a745';
+    });
+
+    socket.on('disconnect', function() {
+      connectionStatus.textContent = 'Disconnected ❌';
+      connectionStatus.style.color = '#dc3545';
+    });
+
+    socket.on('connect_error', function(err) {
+      connectionStatus.textContent = 'Connection Error ❌';
+      connectionStatus.style.color = '#dc3545';
+    });
+
+    socket.on('employee_status_update', function(data) {
+      if (data && data.name) {
+        // Highlight the updated row briefly
+        var row = document.querySelector(`tr[data-employee="${data.name}"]`);
+        if (row) {
+          row.classList.add('new-update');
+          setTimeout(() => row.classList.remove('new-update'), 2000);
+        }
+      }
+    });
+
+    // Start auto-refresh every 1 second
+    var refreshInterval = setInterval(refreshAttendanceData, 1000);
+
+    // Update current time every second
+    function updateCurrentTime() {
+      document.getElementById('current-time').textContent = new Date().toLocaleTimeString();
+    }
+    setInterval(updateCurrentTime, 1000);
+    updateCurrentTime(); // Initial update
+
+    // Clear table function
+    function clearTable() {
+      if (confirm('Bạn có chắc chắn muốn xóa tất cả dữ liệu check-in hôm nay?')) {
+        fetch('/clear_today_data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Đã xóa thành công! Bảng sẽ được cập nhật.');
+            refreshAttendanceData(); // Refresh immediately
+          } else {
+            alert('Có lỗi xảy ra: ' + data.error);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Có lỗi xảy ra khi xóa dữ liệu');
+        });
+      }
+    }
+  </script>
+</body>
+</html>
