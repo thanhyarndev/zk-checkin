@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - RFID Check-in System</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .header p {
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .nav {
+        background: #f8f9fa;
+        padding: 15px 30px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .nav a {
+        text-decoration: none;
+        color: #495057;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .nav a:hover {
+        background: #007bff;
+        color: white;
+      }
+
+      .nav a.active {
+        background: #007bff;
+        color: white;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        padding: 30px;
+        background: #f8f9fa;
+      }
+
+      .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #007bff;
+      }
+
+      .stat-card.employees {
+        border-left-color: #28a745;
+      }
+
+      .stat-card.tags {
+        border-left-color: #ffc107;
+      }
+
+      .stat-card.attendance {
+        border-left-color: #dc3545;
+      }
+
+      .stat-number {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 10px;
+      }
+
+      .stat-card.employees .stat-number {
+        color: #28a745;
+      }
+
+      .stat-card.tags .stat-number {
+        color: #ffc107;
+      }
+
+      .stat-card.attendance .stat-number {
+        color: #dc3545;
+      }
+
+      .stat-label {
+        color: #6c757d;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .section {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .section h2 {
+        color: #495057;
+        margin-bottom: 20px;
+        font-size: 1.5em;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+      }
+
+      .activity-list {
+        list-style: none;
+      }
+
+      .activity-item {
+        padding: 15px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .activity-item:last-child {
+        border-bottom: none;
+      }
+
+      .activity-info {
+        flex: 1;
+      }
+
+      .activity-name {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+      }
+
+      .activity-details {
+        color: #6c757d;
+        font-size: 14px;
+      }
+
+      .activity-time {
+        color: #6c757d;
+        font-size: 12px;
+        font-family: "Courier New", monospace;
+      }
+
+      .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .status-checkin {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-checkout {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .status-ignored {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .action-btn {
+        display: block;
+        padding: 15px 20px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .action-btn:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+      }
+
+      .action-btn.employees {
+        background: #28a745;
+      }
+
+      .action-btn.employees:hover {
+        background: #218838;
+      }
+
+      .action-btn.tags {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .action-btn.tags:hover {
+        background: #e0a800;
+      }
+
+      .action-btn.config {
+        background: #6c757d;
+      }
+
+      .action-btn.config:hover {
+        background: #545b62;
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 2em;
+        }
+
+        .nav {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .quick-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🔧 Admin Dashboard</h1>
+        <p>Quản trị hệ thống điểm danh RFID</p>
+      </div>
+
+      <div class="nav">
+        <a href="/admin" class="active">📊 Dashboard</a>
+        <a href="/admin/employees">👥 Nhân viên</a>
+        <a href="/admin/tags">🏷️ Tag RFID</a>
+        <a href="/admin/config">⚙️ Cấu hình</a>
+        <a href="/" style="margin-left: auto">🏠 Về trang chủ</a>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card employees">
+          <div class="stat-number">{{ total_employees }}</div>
+          <div class="stat-label">Tổng nhân viên</div>
+        </div>
+        <div class="stat-card tags">
+          <div class="stat-number">{{ total_tags }}</div>
+          <div class="stat-label">Tag RFID</div>
+        </div>
+        <div class="stat-card attendance">
+          <div class="stat-number">{{ today_attendance }}</div>
+          <div class="stat-label">Điểm danh hôm nay</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="section">
+          <h2>🚀 Thao tác nhanh</h2>
+          <div class="quick-actions">
+            <a href="/admin/employees" class="action-btn employees"
+              >➕ Thêm nhân viên</a
+            >
+            <a href="/admin/tags" class="action-btn tags">🏷️ Quản lý tag</a>
+            <a href="/admin/config" class="action-btn config"
+              >⚙️ Cấu hình hệ thống</a
+            >
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>📋 Hoạt động gần đây</h2>
+          <ul class="activity-list">
+            {% for log in recent_logs %}
+            <li class="activity-item">
+              <div class="activity-info">
+                <div class="activity-name">
+                  {{ log[1] or 'Không xác định' }}
+                </div>
+                <div class="activity-details">
+                  {{ log[3] or 'Không có ghi chú' }}
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span class="status-badge status-{{ log[2] }}"
+                  >{{ log[2] }}</span
+                >
+                <span class="activity-time">{{ log[0] }}</span>
+              </div>
+            </li>
+            {% else %}
+            <li class="activity-item">
+              <div class="activity-info">
+                <div class="activity-name">Chưa có hoạt động nào</div>
+                <div class="activity-details">
+                  Hệ thống sẽ hiển thị các hoạt động quét tag gần đây
+                </div>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

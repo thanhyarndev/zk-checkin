@@ -1,356 +1,660 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>RFID Check-In System</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f8f9fa;
-    }
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      border-radius: 15px;
-      margin-bottom: 25px;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .header h1 {
-      margin: 0 0 10px 0;
-      font-size: 2.5em;
-      font-weight: 300;
-    }
-    .header p {
-      margin: 0;
-      font-size: 1.1em;
-      opacity: 0.9;
-    }
-    .status {
-      background: white;
-      padding: 25px;
-      border-radius: 12px;
-      margin-bottom: 25px;
-      border-left: 5px solid #4CAF50;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-    .status h3 {
-      margin: 0 0 20px 0;
-      color: #333;
-      font-size: 1.4em;
-    }
-    .status p {
-      margin: 8px 0;
-      font-size: 1.1em;
-      color: #555;
-    }
-    .status strong {
-      color: #333;
-      font-weight: 600;
-    }
-    .checkin-table {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .checkin-table h3 {
-      margin: 0;
-      padding: 25px 25px 20px 25px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
-      color: #333;
-      font-size: 1.4em;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th {
-      background-color: #f8f9fa;
-      padding: 18px 25px;
-      text-align: left;
-      border-bottom: 2px solid #dee2e6;
-      font-weight: 600;
-      color: #495057;
-      font-size: 1.1em;
-    }
-    td {
-      padding: 18px 25px;
-      border-bottom: 1px solid #e9ecef;
-      color: #555;
-    }
-    tr:hover {
-      background-color: #f8f9fa;
-    }
-    .status-indicator {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 10px;
-    }
-    .status-in { background-color: #28a745; }
-    .status-out { background-color: #dc3545; }
-    .status-unknown { background-color: #6c757d; }
-    .new-update {
-      animation: highlight 2s ease-out;
-    }
-    @keyframes highlight {
-      0% { background-color: #d4edda; }
-      100% { background-color: transparent; }
-    }
-    .debug-info {
-      background: #e9ecef;
-      padding: 15px;
-      border-radius: 8px;
-      margin-top: 20px;
-      font-family: monospace;
-      font-size: 12px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .no-records {
-      text-align: center;
-      padding: 60px 40px;
-      color: #6c757d;
-      font-style: italic;
-      font-size: 1.1em;
-    }
-    .time-cell {
-      font-family: 'Courier New', monospace;
-      font-size: 1em;
-      font-weight: 500;
-    }
-    .employee-name {
-      font-weight: 600;
-      color: #495057;
-      font-size: 1.1em;
-    }
-    .action-button {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 10px 0;
-      font-size: 1em;
-      font-weight: 500;
-      transition: background-color 0.3s ease;
-    }
-    .action-button:hover {
-      background: #c82333;
-    }
-    .action-button:disabled {
-      background: #6c757d;
-      cursor: not-allowed;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🏢 RFID Check-In System</h1>
-    <p>Employee attendance tracking - First Check-in & Last Check-out</p>
-  </div>
-
-  <div class="status">
-    <h3>📊 System Status</h3>
-    <p><strong>Date:</strong> <span id="current-date"></span></p>
-    <p><strong>Time:</strong> <span id="current-time"></span></p>
-    <p><strong>Connection:</strong> <span id="connection-status">Connecting...</span></p>
-    <p><strong>Employees Today:</strong> <span id="total-employees">{{ records|length }}</span></p>
-    <p><strong>Auto-refresh:</strong> <span id="auto-refresh-status">Active ✅</span></p>
-    <p><strong>Last Update:</strong> <span id="last-update">Never</span></p>
-    <button class="action-button" onclick="clearTable()">🗑️ Clear Table</button>
-  </div>
-
-  <div class="checkin-table">
-    <h3>📋 Today's Attendance</h3>
-    {% if records %}
-    <table id="attendance-table">
-      <thead>
-        <tr>
-          <th>👤 Employee</th>
-          <th>🕐 First Check-in</th>
-          <th>🚪 Last Check-out</th>
-          <th>📊 Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for record in records %}
-        <tr data-employee="{{ record.name }}">
-          <td class="employee-name">{{ record.name }}</td>
-          <td class="time-cell">{{ record.first_checkin or 'Not checked in' }}</td>
-          <td class="time-cell">{{ record.last_checkout or 'Not checked out' }}</td>
-          <td>
-            {% if record.first_checkin and record.last_checkout %}
-              <span class="status-indicator status-out"></span>Checked Out
-            {% elif record.first_checkin %}
-              <span class="status-indicator status-in"></span>Checked In
-            {% else %}
-              <span class="status-indicator status-unknown"></span>Unknown
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="no-records">
-      <p>No employees have checked in today yet.</p>
-      <p>Place an RFID tag near the reader to test the system.</p>
-    </div>
-    {% endif %}
-  </div>
-
-  <script>
-    // Update current date
-    document.getElementById('current-date').textContent = new Date().toLocaleDateString();
-
-    // Socket.IO auto-connect
-    var socket = io();
-    var connectionStatus = document.getElementById('connection-status');
-    var totalEmployees = document.getElementById('total-employees');
-
-    // Auto-refresh attendance data every second
-    function refreshAttendanceData() {
-      fetch('/get_attendance_data')
-        .then(response => response.json())
-        .then(data => {
-          updateAttendanceTable(data);
-          document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-        })
-        .catch(error => {
-          console.error('Auto-refresh error:', error);
-        });
-    }
-
-    function updateAttendanceTable(records) {
-      var tbody = document.querySelector('#attendance-table tbody');
-      if (!tbody) {
-        // Create table if it doesn't exist
-        var noRecords = document.querySelector('.no-records');
-        if (noRecords) noRecords.remove();
-        var table = document.createElement('table');
-        table.id = 'attendance-table';
-        table.innerHTML = `
-          <thead>
-            <tr>
-              <th>👤 Employee</th>
-              <th>🕐 First Check-in</th>
-              <th>🚪 Last Check-out</th>
-              <th>📊 Status</th>
-            </tr>
-          </thead><tbody></tbody>`;
-        document.querySelector('.checkin-table').appendChild(table);
-        tbody = table.querySelector('tbody');
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RFID Check-in System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
 
-      // Clear existing rows
-      tbody.innerHTML = '';
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
 
-      if (records && records.length > 0) {
-        records.forEach(function(record) {
-          var row = document.createElement('tr');
-          row.setAttribute('data-employee', record.name);
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .header p {
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .time-windows {
+        background: #f8f9fa;
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .time-windows h3 {
+        color: #495057;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+      }
+
+      .time-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+      }
+
+      .time-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #28a745;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .time-card.checkout {
+        border-left-color: #dc3545;
+      }
+
+      .time-card h4 {
+        color: #495057;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+      }
+
+      .time-card .time {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #212529;
+      }
+
+      .controls {
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+      }
+
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #c82333;
+        transform: translateY(-2px);
+      }
+
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: #218838;
+        transform: translateY(-2px);
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.connected {
+        background: #28a745;
+      }
+
+      .status-dot.disconnected {
+        background: #dc3545;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .attendance-table {
+        padding: 20px;
+      }
+
+      .table-container {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      th,
+      td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      tr:hover {
+        background: #f8f9fa;
+      }
+
+      .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .status-present {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-absent {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .time-display {
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        color: #6c757d;
+      }
+
+      .rfid-uid {
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: #6c757d;
+        background: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 1000;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+      }
+
+      .notification.show {
+        transform: translateX(0);
+      }
+
+      .notification.checkin {
+        background: #28a745;
+      }
+
+      .notification.checkout {
+        background: #dc3545;
+      }
+
+      .notification.error {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .stat-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 5px;
+      }
+
+      .stat-label {
+        color: #6c757d;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 2em;
+        }
+
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .time-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stats {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🏢 RFID Check-in System</h1>
+        <p>Hệ thống điểm danh tự động bằng RFID</p>
+      </div>
+
+      <div class="time-windows">
+        <h3>⏰ Khung giờ quét hợp lệ</h3>
+        <div class="time-grid">
+          <div class="time-card">
+            <h4>Check-in</h4>
+            <div class="time">{{ checkin_start }} - {{ checkin_end }}</div>
+          </div>
+          <div class="time-card checkout">
+            <h4>Check-out</h4>
+            <div class="time">{{ checkout_start }} - {{ checkout_end }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="reader-control-section"
+        style="padding: 24px 24px 0 24px; margin-bottom: 0"
+      >
+        <h2 style="font-size: 1.3em; color: #007bff; margin-bottom: 10px">
+          🛠️ Điều khiển Reader
+        </h2>
+        <div
+          style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap"
+        >
+          <div id="readerStatusText" style="font-weight: 500; color: #495057">
+            Trạng thái:
+            <span
+              id="readerStatusLabel"
+              style="font-weight: bold; color: #dc3545"
+              >Đã dừng</span
+            >
+          </div>
+          <button
+            class="btn btn-success"
+            id="startReaderBtn"
+            onclick="startReader()"
+          >
+            ▶️ Start Reader
+          </button>
+          <button
+            class="btn btn-danger"
+            id="stopReaderBtn"
+            onclick="stopReader()"
+          >
+            ⏹️ Stop Reader
+          </button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="status-indicator">
+          <div class="status-dot" id="connectionStatus"></div>
+          <span id="connectionText">Đang kết nối...</span>
+        </div>
+
+        <button class="btn btn-primary" onclick="refreshData()">
+          🔄 Làm mới
+        </button>
+        <button class="btn btn-success" onclick="exportData()">
+          📊 Xuất Excel
+        </button>
+        <a href="/scan_logs" class="btn btn-primary">📋 Xem Log</a>
+        <a href="/admin" class="btn btn-primary" style="background: #6c757d"
+          >🔧 Admin Panel</a
+        >
+        <button class="btn btn-danger" onclick="clearTodayData()">
+          🗑️ Xóa dữ liệu hôm nay
+        </button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-number" id="totalEmployees">0</div>
+          <div class="stat-label">Tổng nhân viên</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="presentCount">0</div>
+          <div class="stat-label">Có mặt</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="absentCount">0</div>
+          <div class="stat-label">Vắng mặt</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="checkedOutCount">0</div>
+          <div class="stat-label">Đã về</div>
+        </div>
+      </div>
+
+      <div class="attendance-table">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nhân viên</th>
+                <th>RFID UID</th>
+                <th>Trạng thái</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTable">
+              <!-- Data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script>
+      const socket = io();
+      let attendanceData = [];
+
+      // Connection status
+      socket.on("connect", function () {
+        document.getElementById("connectionStatus").className =
+          "status-dot connected";
+        document.getElementById("connectionText").textContent = "Đã kết nối";
+      });
+
+      socket.on("disconnect", function () {
+        document.getElementById("connectionStatus").className =
+          "status-dot disconnected";
+        document.getElementById("connectionText").textContent = "Mất kết nối";
+      });
+
+      // Real-time updates
+      socket.on("employee_status_update", function (data) {
+        showNotification(data.name, data.action, data.message);
+        refreshData();
+      });
+
+      function showNotification(name, action, message) {
+        const notification = document.getElementById("notification");
+        notification.textContent = `${
+          action === "checkin" ? "✅" : "🚪"
+        } ${name}: ${message}`;
+        notification.className = `notification ${action}`;
+        notification.classList.add("show");
+
+        setTimeout(() => {
+          notification.classList.remove("show");
+        }, 5000);
+      }
+
+      function refreshData() {
+        fetch("/get_attendance_data")
+          .then((response) => response.json())
+          .then((data) => {
+            attendanceData = data;
+            updateTable(data);
+            updateStats(data);
+          })
+          .catch((error) => {
+            console.error("Error fetching data:", error);
+            showNotification("System", "error", "Lỗi khi tải dữ liệu");
+          });
+      }
+
+      function updateTable(data) {
+        const tbody = document.getElementById("attendanceTable");
+        tbody.innerHTML = "";
+
+        data.forEach((record) => {
+          const row = document.createElement("tr");
+
+          const checkInTime = record.check_in_time
+            ? new Date(record.check_in_time).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "-";
+
+          const checkOutTime = record.check_out_time
+            ? new Date(record.check_out_time).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "-";
+
           row.innerHTML = `
-            <td class="employee-name">${record.name}</td>
-            <td class="time-cell">${record.first_checkin || 'Not checked in'}</td>
-            <td class="time-cell">${record.last_checkout || 'Not checked out'}</td>
-            <td>
-              ${record.first_checkin && record.last_checkout ? 
-                '<span class="status-indicator status-out"></span>Checked Out' :
-                record.first_checkin ? 
-                '<span class="status-indicator status-in"></span>Checked In' :
-                '<span class="status-indicator status-unknown"></span>Unknown'
-              }
-            </td>`;
+                    <td><strong>${record.name}</strong></td>
+                    <td>${record.rfid_uids || "N/A"}</td>
+                    <td><span class="status-badge status-${record.status}">${
+            record.status === "present" ? "Có mặt" : "Vắng mặt"
+          }</span></td>
+                    <td class="time-display">${checkInTime}</td>
+                    <td class="time-display">${checkOutTime}</td>
+                `;
+
           tbody.appendChild(row);
         });
-      } else {
-        // Show no records message
-        var noRecords = document.querySelector('.no-records');
-        if (!noRecords) {
-          var div = document.createElement('div');
-          div.className = 'no-records';
-          div.innerHTML = `
-            <p>No employees have checked in today yet.</p>
-            <p>Place an RFID tag near the reader to test the system.</p>`;
-          document.querySelector('.checkin-table').appendChild(div);
+      }
+
+      function updateStats(data) {
+        const total = data.length;
+        const present = data.filter((r) => r.status === "present").length;
+        const absent = total - present;
+        const checkedOut = data.filter((r) => r.check_out_time).length;
+
+        document.getElementById("totalEmployees").textContent = total;
+        document.getElementById("presentCount").textContent = present;
+        document.getElementById("absentCount").textContent = absent;
+        document.getElementById("checkedOutCount").textContent = checkedOut;
+      }
+
+      function clearTodayData() {
+        if (
+          confirm("Bạn có chắc chắn muốn xóa tất cả dữ liệu điểm danh hôm nay?")
+        ) {
+          fetch("/clear_today_data", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                showNotification("System", "success", "Đã xóa dữ liệu hôm nay");
+                refreshData();
+              } else {
+                showNotification("System", "error", "Lỗi khi xóa dữ liệu");
+              }
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+              showNotification("System", "error", "Lỗi khi xóa dữ liệu");
+            });
         }
       }
 
-      // Update employee count
-      totalEmployees.textContent = records ? records.length : 0;
-    }
+      function exportData() {
+        // Simple CSV export
+        const csvContent =
+          "data:text/csv;charset=utf-8," +
+          "Tên nhân viên,RFID UID,Trạng thái,Check-in,Check-out\n" +
+          attendanceData
+            .map((record) => {
+              const checkIn = record.check_in_time
+                ? new Date(record.check_in_time).toLocaleString("vi-VN")
+                : "";
+              const checkOut = record.check_out_time
+                ? new Date(record.check_out_time).toLocaleString("vi-VN")
+                : "";
+              return `${record.name},${record.rfid_uids || "N/A"},${
+                record.status === "present" ? "Có mặt" : "Vắng mặt"
+              },${checkIn},${checkOut}`;
+            })
+            .join("\n");
 
-    // Socket event handlers
-    socket.on('connect', function() {
-      connectionStatus.textContent = 'Connected ✅';
-      connectionStatus.style.color = '#28a745';
-    });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute(
+          "download",
+          `attendance_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
 
-    socket.on('disconnect', function() {
-      connectionStatus.textContent = 'Disconnected ❌';
-      connectionStatus.style.color = '#dc3545';
-    });
-
-    socket.on('connect_error', function(err) {
-      connectionStatus.textContent = 'Connection Error ❌';
-      connectionStatus.style.color = '#dc3545';
-    });
-
-    socket.on('employee_status_update', function(data) {
-      if (data && data.name) {
-        // Highlight the updated row briefly
-        var row = document.querySelector(`tr[data-employee="${data.name}"]`);
-        if (row) {
-          row.classList.add('new-update');
-          setTimeout(() => row.classList.remove('new-update'), 2000);
+      // --- Reader Control ---
+      function updateReaderStatusUI(running) {
+        const label = document.getElementById("readerStatusLabel");
+        const startBtn = document.getElementById("startReaderBtn");
+        const stopBtn = document.getElementById("stopReaderBtn");
+        if (running) {
+          label.textContent = "Đang đọc";
+          label.style.color = "#28a745";
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } else {
+          label.textContent = "Đã dừng";
+          label.style.color = "#dc3545";
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
         }
       }
-    });
-
-    // Start auto-refresh every 1 second
-    var refreshInterval = setInterval(refreshAttendanceData, 1000);
-
-    // Update current time every second
-    function updateCurrentTime() {
-      document.getElementById('current-time').textContent = new Date().toLocaleTimeString();
-    }
-    setInterval(updateCurrentTime, 1000);
-    updateCurrentTime(); // Initial update
-
-    // Clear table function
-    function clearTable() {
-      if (confirm('Bạn có chắc chắn muốn xóa tất cả dữ liệu check-in hôm nay?')) {
-        fetch('/clear_today_data', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert('Đã xóa thành công! Bảng sẽ được cập nhật.');
-            refreshAttendanceData(); // Refresh immediately
-          } else {
-            alert('Có lỗi xảy ra: ' + data.error);
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          alert('Có lỗi xảy ra khi xóa dữ liệu');
-        });
+      function fetchReaderStatus() {
+        fetch("/reader_status")
+          .then((res) => res.json())
+          .then((data) => updateReaderStatusUI(data.running));
       }
-    }
-  </script>
-</body>
+      function startReader() {
+        fetch("/start_reader", { method: "POST" })
+          .then((res) => res.json())
+          .then((data) => {
+            showNotification(
+              "Reader",
+              data.success ? "checkin" : "error",
+              data.message
+            );
+            fetchReaderStatus();
+          });
+      }
+      function stopReader() {
+        fetch("/stop_reader", { method: "POST" })
+          .then((res) => res.json())
+          .then((data) => {
+            showNotification(
+              "Reader",
+              data.success ? "checkout" : "error",
+              data.message
+            );
+            fetchReaderStatus();
+          });
+      }
+      // Gọi khi load trang và mỗi 10s
+      fetchReaderStatus();
+      setInterval(fetchReaderStatus, 10000);
+
+      // Initial load
+      refreshData();
+
+      // Auto refresh every 30 seconds
+      setInterval(refreshData, 30000);
+    </script>
+  </body>
 </html>

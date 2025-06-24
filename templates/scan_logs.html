@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RFID Scan Logs - Check-in System</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .header p {
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .controls {
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+      }
+
+      .search-box {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .filter-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .filter-group select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      .logs-table {
+        padding: 20px;
+      }
+
+      .table-container {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      tr:hover {
+        background: #f8f9fa;
+      }
+
+      .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .status-checkin {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-checkout {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .status-ignored {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .status-unknown_employee {
+        background: #e2e3e5;
+        color: #383d41;
+      }
+
+      .status-outside_hours {
+        background: #d1ecf1;
+        color: #0c5460;
+      }
+
+      .status-recent_scan {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .status-already_checked_in {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .status-already_checked_out {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .status-no_checkin {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .timestamp {
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        color: #6c757d;
+      }
+
+      .rfid-uid {
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: #6c757d;
+        background: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      .note {
+        font-size: 12px;
+        color: #6c757d;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .pagination button {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .pagination button:hover {
+        background: #f8f9fa;
+      }
+
+      .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .pagination .current-page {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .stat-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .stat-number {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 5px;
+      }
+
+      .stat-label {
+        color: #6c757d;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 2em;
+        }
+
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .filter-group {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📋 RFID Scan Logs</h1>
+        <p>Lịch sử quét thẻ RFID - Hệ thống điểm danh</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div
+            class="stat-number"
+            id="totalScans"
+            data-value="{{ total_logs }}"
+          >
+            {{ total_logs }}
+          </div>
+          <div class="stat-label">Tổng lượt quét</div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-number"
+            id="successfulScans"
+            data-value="{{ total_success }}"
+          >
+            {{ total_success }}
+          </div>
+          <div class="stat-label">Thành công</div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-number"
+            id="ignoredScans"
+            data-value="{{ total_ignored }}"
+          >
+            {{ total_ignored }}
+          </div>
+          <div class="stat-label">Bị bỏ qua</div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-number"
+            id="unknownScans"
+            data-value="{{ total_logs - total_success - total_ignored }}"
+          >
+            {{ total_logs - total_success - total_ignored }}
+          </div>
+          <div class="stat-label">Thẻ không xác định</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <a href="/" class="btn btn-primary">🏠 Về trang chủ</a>
+
+        <div class="search-box">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Tìm kiếm theo tên nhân viên hoặc RFID UID..."
+          />
+        </div>
+
+        <div class="filter-group">
+          <select id="statusFilter">
+            <option value="">Tất cả trạng thái</option>
+            <option value="checkin">Check-in</option>
+            <option value="checkout">Check-out</option>
+            <option value="ignored">Bị bỏ qua</option>
+            <option value="unknown_employee">Thẻ không xác định</option>
+            <option value="outside_hours">Ngoài giờ</option>
+            <option value="recent_scan">Quét gần đây</option>
+            <option value="already_checked_in">Đã check-in</option>
+            <option value="already_checked_out">Đã check-out</option>
+            <option value="no_checkin">Chưa check-in</option>
+          </select>
+
+          <select id="dateFilter">
+            <option value="">Tất cả ngày</option>
+            <option value="today">Hôm nay</option>
+            <option value="yesterday">Hôm qua</option>
+            <option value="week">Tuần này</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="exportLogs()">
+          📊 Xuất CSV
+        </button>
+      </div>
+
+      <div class="logs-table">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Nhân viên</th>
+                <th>RFID UID</th>
+                <th>Trạng thái</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody id="logsTable">
+              {% for log in logs %}
+              <tr>
+                <td class="timestamp">{{ log[0] }}</td>
+                <td><strong>{{ log[1] or 'Không xác định' }}</strong></td>
+                <td><span class="rfid-uid">{{ log[2] }}</span></td>
+                <td>
+                  <span class="status-badge status-{{ log[3] }}"
+                    >{{ get_status_display(log[3]) }}</span
+                  >
+                </td>
+                <td class="note">{{ log[4] or '' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button onclick="previousPage()" id="prevBtn">← Trước</button>
+        <span id="pageInfo">Trang 1</span>
+        <button onclick="nextPage()" id="nextBtn">Sau →</button>
+      </div>
+    </div>
+
+    <script>
+      let allLogs = [];
+      let filteredLogs = [];
+      let currentPage = 1;
+      const logsPerPage = 50;
+
+      // Initialize with server data
+      document.addEventListener("DOMContentLoaded", function () {
+        // Store initial server statistics from data attributes
+        window.initialStats = {
+          total: parseInt(
+            document.getElementById("totalScans").getAttribute("data-value")
+          ),
+          success: parseInt(
+            document
+              .getElementById("successfulScans")
+              .getAttribute("data-value")
+          ),
+          ignored: parseInt(
+            document.getElementById("ignoredScans").getAttribute("data-value")
+          ),
+          unknown: parseInt(
+            document.getElementById("unknownScans").getAttribute("data-value")
+          ),
+        };
+
+        // Convert server data to array
+        const tableRows = document.querySelectorAll("#logsTable tr");
+        allLogs = Array.from(tableRows).map((row) => {
+          const cells = row.querySelectorAll("td");
+          const statusBadge = cells[3].querySelector(".status-badge");
+          const className = statusBadge.className;
+
+          // Split class names and find the status class
+          const classes = className.split(" ");
+          let status = "unknown";
+          for (let cls of classes) {
+            if (cls.startsWith("status-") && cls !== "status-badge") {
+              status = cls.replace("status-", "");
+              break;
+            }
+          }
+
+          console.log(
+            "Debug - className:",
+            className,
+            "extracted status:",
+            status
+          );
+
+          return {
+            timestamp: cells[0].textContent,
+            employee: cells[1].textContent,
+            rfid_uid: cells[2].textContent,
+            status: status,
+            note: cells[4].textContent,
+          };
+        });
+
+        filteredLogs = [...allLogs];
+        updateStats();
+        displayCurrentPage();
+      });
+
+      // Search functionality
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", function () {
+          filterLogs();
+        });
+
+      // Status filter
+      document
+        .getElementById("statusFilter")
+        .addEventListener("change", function () {
+          filterLogs();
+        });
+
+      // Date filter
+      document
+        .getElementById("dateFilter")
+        .addEventListener("change", function () {
+          filterLogs();
+        });
+
+      function filterLogs() {
+        const searchTerm = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const statusFilter = document.getElementById("statusFilter").value;
+        const dateFilter = document.getElementById("dateFilter").value;
+
+        filteredLogs = allLogs.filter((log) => {
+          // Search filter
+          const matchesSearch =
+            !searchTerm ||
+            log.employee.toLowerCase().includes(searchTerm) ||
+            log.rfid_uid.toLowerCase().includes(searchTerm);
+
+          // Status filter
+          const matchesStatus = !statusFilter || log.status === statusFilter;
+
+          // Date filter
+          let matchesDate = true;
+          if (dateFilter) {
+            const logDate = new Date(log.timestamp);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+
+            switch (dateFilter) {
+              case "today":
+                matchesDate = logDate.toDateString() === today.toDateString();
+                break;
+              case "yesterday":
+                matchesDate =
+                  logDate.toDateString() === yesterday.toDateString();
+                break;
+              case "week":
+                matchesDate = logDate >= weekAgo;
+                break;
+            }
+          }
+
+          return matchesSearch && matchesStatus && matchesDate;
+        });
+
+        currentPage = 1;
+        updateStats();
+        displayCurrentPage();
+      }
+
+      function displayCurrentPage() {
+        const startIndex = (currentPage - 1) * logsPerPage;
+        const endIndex = startIndex + logsPerPage;
+        const pageLogs = filteredLogs.slice(startIndex, endIndex);
+
+        const tbody = document.getElementById("logsTable");
+        tbody.innerHTML = "";
+
+        pageLogs.forEach((log) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td class="timestamp">${log.timestamp}</td>
+                    <td><strong>${log.employee}</strong></td>
+                    <td><span class="rfid-uid">${log.rfid_uid}</span></td>
+                    <td><span class="status-badge status-${
+                      log.status
+                    }">${getStatusDisplay(log.status)}</span></td>
+                    <td class="note">${log.note}</td>
+                `;
+          tbody.appendChild(row);
+        });
+
+        updatePagination();
+      }
+
+      function updatePagination() {
+        const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+        const pageInfo = document.getElementById("pageInfo");
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+
+        pageInfo.textContent = `Trang ${currentPage} / ${totalPages} (${filteredLogs.length} kết quả)`;
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+      }
+
+      function previousPage() {
+        if (currentPage > 1) {
+          currentPage--;
+          displayCurrentPage();
+        }
+      }
+
+      function nextPage() {
+        const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+        if (currentPage < totalPages) {
+          currentPage++;
+          displayCurrentPage();
+        }
+      }
+
+      function updateStats() {
+        // If no filters are applied, show initial server stats
+        const searchTerm = document.getElementById("searchInput").value;
+        const statusFilter = document.getElementById("statusFilter").value;
+        const dateFilter = document.getElementById("dateFilter").value;
+
+        if (!searchTerm && !statusFilter && !dateFilter) {
+          // No filters applied, show server statistics
+          document.getElementById("totalScans").textContent =
+            window.initialStats.total;
+          document.getElementById("successfulScans").textContent =
+            window.initialStats.success;
+          document.getElementById("ignoredScans").textContent =
+            window.initialStats.ignored;
+          document.getElementById("unknownScans").textContent =
+            window.initialStats.unknown;
+        } else {
+          // Filters applied, calculate from filtered data
+          const total = filteredLogs.length;
+          const successful = filteredLogs.filter((log) =>
+            ["checkin", "checkout"].includes(log.status)
+          ).length;
+          const ignored = filteredLogs.filter(
+            (log) =>
+              log.status.startsWith("already_") ||
+              log.status === "recent_scan" ||
+              log.status === "ignored" ||
+              log.status === "outside_hours" ||
+              log.status === "no_checkin"
+          ).length;
+          const unknown = filteredLogs.filter(
+            (log) => log.status === "unknown_employee"
+          ).length;
+
+          document.getElementById("totalScans").textContent = total;
+          document.getElementById("successfulScans").textContent = successful;
+          document.getElementById("ignoredScans").textContent = ignored;
+          document.getElementById("unknownScans").textContent = unknown;
+        }
+      }
+
+      function getStatusDisplay(status) {
+        const statusMap = {
+          checkin: "Check-in",
+          checkout: "Check-out",
+          ignored: "Bị bỏ qua",
+          unknown_employee: "Thẻ không xác định",
+          outside_hours: "Ngoài giờ",
+          recent_scan: "Quét gần đây",
+          already_checked_in: "Đã check-in",
+          already_checked_out: "Đã check-out",
+          no_checkin: "Chưa check-in",
+        };
+        return statusMap[status] || status;
+      }
+
+      function exportLogs() {
+        const csvContent =
+          "data:text/csv;charset=utf-8," +
+          "Thời gian,Nhân viên,RFID UID,Trạng thái,Ghi chú\n" +
+          filteredLogs
+            .map((log) => {
+              return `${log.timestamp},"${log.employee}",${
+                log.rfid_uid
+              },${getStatusDisplay(log.status)},"${log.note}"`;
+            })
+            .join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute(
+          "download",
+          `scan_logs_${new Date().toISOString().split("T")[0]}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cấu hình hệ thống - Admin</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .nav {
+        background: #f8f9fa;
+        padding: 15px 30px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .nav a {
+        text-decoration: none;
+        color: #495057;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .nav a:hover {
+        background: #6c757d;
+        color: white;
+      }
+
+      .nav a.active {
+        background: #6c757d;
+        color: white;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .config-section {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .config-section h2 {
+        color: #495057;
+        margin-bottom: 20px;
+        font-size: 1.5em;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+      }
+
+      .config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+
+      .config-item {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border-left: 4px solid #6c757d;
+      }
+
+      .config-item.time {
+        border-left-color: #007bff;
+      }
+
+      .config-item.cooldown {
+        border-left-color: #ffc107;
+      }
+
+      .config-item.reader {
+        border-left-color: #28a745;
+      }
+
+      .config-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .config-description {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      .config-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+      }
+
+      .config-input:focus {
+        outline: none;
+        border-color: #6c757d;
+      }
+
+      .time-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+
+      .save-btn {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      .save-btn:hover {
+        background: #545b62;
+        transform: translateY(-2px);
+      }
+
+      .save-btn:disabled {
+        background: #adb5bd;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        font-weight: 500;
+      }
+
+      .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .current-time {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .current-time h3 {
+        color: #495057;
+        margin-bottom: 10px;
+      }
+
+      .time-display {
+        font-family: "Courier New", monospace;
+        font-size: 1.2em;
+        color: #007bff;
+        font-weight: bold;
+      }
+
+      @media (max-width: 768px) {
+        .config-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .time-group {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>⚙️ Cấu hình hệ thống</h1>
+      </div>
+
+      <div class="nav">
+        <a href="/admin">📊 Dashboard</a>
+        <a href="/admin/employees">👥 Nhân viên</a>
+        <a href="/admin/tags">🏷️ Tag RFID</a>
+        <a href="/admin/config" class="active">⚙️ Cấu hình</a>
+        <a href="/" style="margin-left: auto">🏠 Về trang chủ</a>
+      </div>
+
+      <div class="content">
+        <div id="alert-container"></div>
+
+        <div class="current-time">
+          <h3>🕐 Thời gian hiện tại</h3>
+          <div class="time-display" id="currentTime"></div>
+        </div>
+
+        <form id="configForm">
+          <div class="config-section">
+            <h2>⏰ Cấu hình khung giờ</h2>
+            <div class="config-grid">
+              <div class="config-item time">
+                <label class="config-label">Giờ bắt đầu check-in</label>
+                <div class="config-description">
+                  Thời gian bắt đầu cho phép check-in (HH:MM)
+                </div>
+                <input
+                  type="time"
+                  class="config-input"
+                  name="checkin_start"
+                  value="{{ config.get('checkin_start', '08:45') }}"
+                  required
+                />
+              </div>
+              <div class="config-item time">
+                <label class="config-label">Giờ kết thúc check-in</label>
+                <div class="config-description">
+                  Thời gian kết thúc cho phép check-in (HH:MM)
+                </div>
+                <input
+                  type="time"
+                  class="config-input"
+                  name="checkin_end"
+                  value="{{ config.get('checkin_end', '09:15') }}"
+                  required
+                />
+              </div>
+              <div class="config-item time">
+                <label class="config-label">Giờ bắt đầu check-out</label>
+                <div class="config-description">
+                  Thời gian bắt đầu cho phép check-out (HH:MM)
+                </div>
+                <input
+                  type="time"
+                  class="config-input"
+                  name="checkout_start"
+                  value="{{ config.get('checkout_start', '17:45') }}"
+                  required
+                />
+              </div>
+              <div class="config-item time">
+                <label class="config-label">Giờ kết thúc check-out</label>
+                <div class="config-description">
+                  Thời gian kết thúc cho phép check-out (HH:MM)
+                </div>
+                <input
+                  type="time"
+                  class="config-input"
+                  name="checkout_end"
+                  value="{{ config.get('checkout_end', '18:15') }}"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <h2>🔧 Cấu hình khác</h2>
+            <div class="config-grid">
+              <div class="config-item cooldown">
+                <label class="config-label"
+                  >Thời gian chờ giữa các lần quét (giây)</label
+                >
+                <div class="config-description">
+                  Ngăn chặn quét liên tục trong khoảng thời gian này
+                </div>
+                <input
+                  type="number"
+                  class="config-input"
+                  name="scan_cooldown"
+                  value="{{ config.get('scan_cooldown', '10') }}"
+                  min="1"
+                  max="60"
+                  required
+                />
+              </div>
+              <div class="config-item reader">
+                <label class="config-label">ID RFID Reader</label>
+                <div class="config-description">
+                  Định danh cho RFID reader này
+                </div>
+                <input
+                  type="text"
+                  class="config-input"
+                  name="reader_id"
+                  value="{{ config.get('reader_id', 'MAIN_ENTRANCE') }}"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="save-btn" id="saveBtn">
+            💾 Lưu cấu hình
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function showAlert(message, type = "success") {
+        const alertContainer = document.getElementById("alert-container");
+        const alert = document.createElement("div");
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+        alertContainer.appendChild(alert);
+
+        setTimeout(() => {
+          alert.remove();
+        }, 5000);
+      }
+
+      function updateCurrentTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString("vi-VN");
+        document.getElementById("currentTime").textContent = timeString;
+      }
+
+      // Update time every second
+      updateCurrentTime();
+      setInterval(updateCurrentTime, 1000);
+
+      document
+        .getElementById("configForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const saveBtn = document.getElementById("saveBtn");
+          saveBtn.disabled = true;
+          saveBtn.textContent = "⏳ Đang lưu...";
+
+          const formData = new FormData(this);
+          const configData = {};
+
+          for (let [key, value] of formData.entries()) {
+            configData[key] = value;
+          }
+
+          fetch("/admin/config/update", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(configData),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                showAlert(data.message, "success");
+              } else {
+                showAlert(data.message, "error");
+              }
+            })
+            .catch((error) => {
+              showAlert("Có lỗi xảy ra khi lưu cấu hình", "error");
+            })
+            .finally(() => {
+              saveBtn.disabled = false;
+              saveBtn.textContent = "💾 Lưu cấu hình";
+            });
+        });
+
+      // Validate time ranges
+      function validateTimeRanges() {
+        const checkinStart = document.querySelector(
+          'input[name="checkin_start"]'
+        ).value;
+        const checkinEnd = document.querySelector(
+          'input[name="checkin_end"]'
+        ).value;
+        const checkoutStart = document.querySelector(
+          'input[name="checkout_start"]'
+        ).value;
+        const checkoutEnd = document.querySelector(
+          'input[name="checkout_end"]'
+        ).value;
+
+        if (checkinStart >= checkinEnd) {
+          showAlert("Giờ kết thúc check-in phải sau giờ bắt đầu", "error");
+          return false;
+        }
+
+        if (checkoutStart >= checkoutEnd) {
+          showAlert("Giờ kết thúc check-out phải sau giờ bắt đầu", "error");
+          return false;
+        }
+
+        if (checkinEnd >= checkoutStart) {
+          showAlert(
+            "Khung giờ check-in và check-out không được chồng lấp",
+            "error"
+          );
+          return false;
+        }
+
+        return true;
+      }
+
+      // Add validation to form submission
+      document
+        .getElementById("configForm")
+        .addEventListener("submit", function (e) {
+          if (!validateTimeRanges()) {
+            e.preventDefault();
+          }
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý Tag RFID - Admin</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .nav {
+        background: #f8f9fa;
+        padding: 15px 30px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .nav a {
+        text-decoration: none;
+        color: #495057;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .nav a:hover {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .nav a.active {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      .add-btn {
+        background: #ffc107;
+        color: #212529;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .add-btn:hover {
+        background: #e0a800;
+        transform: translateY(-2px);
+      }
+
+      .search-box {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .search-input {
+        padding: 10px 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        min-width: 250px;
+      }
+
+      .search-input:focus {
+        outline: none;
+        border-color: #ffc107;
+      }
+
+      .tags-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .tags-table th {
+        background: #f8f9fa;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #e9ecef;
+      }
+
+      .tags-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e9ecef;
+        vertical-align: middle;
+      }
+
+      .tags-table tr:hover {
+        background: #f8f9fa;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+      }
+
+      .btn-delete {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      }
+
+      .btn-delete:hover {
+        background: #c82333;
+      }
+
+      .rfid-uid {
+        font-family: "Courier New", monospace;
+        background: #f8f9fa;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #495057;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      .modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 30px;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+      }
+
+      .modal-title {
+        font-size: 1.5em;
+        color: #495057;
+        font-weight: 600;
+      }
+
+      .close {
+        color: #aaa;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s ease;
+      }
+
+      .close:hover {
+        color: #000;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #495057;
+      }
+
+      .form-input,
+      .form-select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+      }
+
+      .form-input:focus,
+      .form-select:focus {
+        outline: none;
+        border-color: #ffc107;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 30px;
+      }
+
+      .btn-cancel {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.3s ease;
+      }
+
+      .btn-cancel:hover {
+        background: #545b62;
+      }
+
+      .btn-save {
+        background: #ffc107;
+        color: #212529;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.3s ease;
+      }
+
+      .btn-save:hover {
+        background: #e0a800;
+      }
+
+      .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        font-weight: 500;
+      }
+
+      .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .employee-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .employee-name {
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .employee-code {
+        background: #e9ecef;
+        color: #6c757d;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 768px) {
+        .toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .search-box {
+          order: 2;
+        }
+
+        .add-btn {
+          order: 1;
+        }
+
+        .tags-table {
+          font-size: 14px;
+        }
+
+        .tags-table th,
+        .tags-table td {
+          padding: 10px 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🏷️ Quản lý Tag RFID</h1>
+      </div>
+
+      <div class="nav">
+        <a href="/admin">📊 Dashboard</a>
+        <a href="/admin/employees">👥 Nhân viên</a>
+        <a href="/admin/tags" class="active">🏷️ Tag RFID</a>
+        <a href="/admin/config">⚙️ Cấu hình</a>
+        <a href="/" style="margin-left: auto">🏠 Về trang chủ</a>
+      </div>
+
+      <div class="content">
+        <div class="toolbar">
+          <button class="add-btn" onclick="openAddModal()">
+            ➕ Thêm Tag RFID
+          </button>
+          <div class="search-box">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Tìm kiếm tag..."
+              onkeyup="filterTags()"
+            />
+          </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <table class="tags-table">
+          <thead>
+            <tr>
+              <th>Nhân viên</th>
+              <th>Tag RFID</th>
+              <th>Tên tag</th>
+              <th>Ngày tạo</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="tags-tbody">
+            {% for tag in tags %}
+            <tr data-tag-id="{{ tag[0] }}">
+              <td>
+                <div class="employee-info">
+                  <span class="employee-name">{{ tag[5] }}</span>
+                  <span class="employee-code">{{ tag[6] }}</span>
+                </div>
+              </td>
+              <td><span class="rfid-uid">{{ tag[2] }}</span></td>
+              <td>{{ tag[3] or 'Không có tên' }}</td>
+              <td>{{ tag[4] }}</td>
+              <td>
+                <div class="action-buttons">
+                  <button
+                    class="btn-delete"
+                    onclick="deleteTag('{{ tag[0] }}')"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Add Tag Modal -->
+    <div id="tagModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Thêm Tag RFID</h2>
+          <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <form id="tagForm">
+          <div class="form-group">
+            <label class="form-label">Nhân viên *</label>
+            <select class="form-select" name="employee_id" required>
+              <option value="">Chọn nhân viên...</option>
+              {% for emp in employees %}
+              <option value="{{ emp[0] }}">{{ emp[1] }} ({{ emp[2] }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">UID Tag RFID *</label>
+            <input
+              type="text"
+              class="form-input"
+              name="rfid_uid"
+              placeholder="VD: ABCD0286"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tên tag</label>
+            <input
+              type="text"
+              class="form-input"
+              name="tag_name"
+              placeholder="VD: Tag chính, Tag dự phòng"
+            />
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" onclick="closeModal()">
+              Hủy
+            </button>
+            <button type="submit" class="btn-save">Lưu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function showAlert(message, type = "success") {
+        const alertContainer = document.getElementById("alert-container");
+        const alert = document.createElement("div");
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+        alertContainer.appendChild(alert);
+
+        setTimeout(() => {
+          alert.remove();
+        }, 5000);
+      }
+
+      function openAddModal() {
+        document.getElementById("tagForm").reset();
+        document.getElementById("tagModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("tagModal").style.display = "none";
+      }
+
+      function filterTags() {
+        const input = document.querySelector(".search-input");
+        const filter = input.value.toLowerCase();
+        const tbody = document.getElementById("tags-tbody");
+        const rows = tbody.getElementsByTagName("tr");
+
+        for (let row of rows) {
+          const cells = row.getElementsByTagName("td");
+          let found = false;
+
+          for (let cell of cells) {
+            if (cell.textContent.toLowerCase().includes(filter)) {
+              found = true;
+              break;
+            }
+          }
+
+          row.style.display = found ? "" : "none";
+        }
+      }
+
+      function deleteTag(tagId) {
+        if (confirm("Bạn có chắc chắn muốn xóa tag này?")) {
+          fetch(`/admin/tags/delete/${tagId}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                showAlert(data.message, "success");
+                // Remove the row from table
+                const row = document.querySelector(
+                  `tr[data-tag-id="${tagId}"]`
+                );
+                row.remove();
+              } else {
+                showAlert(data.message, "error");
+              }
+            })
+            .catch((error) => {
+              showAlert("Có lỗi xảy ra khi xóa tag", "error");
+            });
+        }
+      }
+
+      document
+        .getElementById("tagForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const formData = new FormData(this);
+
+          fetch("/admin/tags/add", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                showAlert(data.message, "success");
+                closeModal();
+                // Reload page to show updated data
+                setTimeout(() => {
+                  location.reload();
+                }, 1000);
+              } else {
+                showAlert(data.message, "error");
+              }
+            })
+            .catch((error) => {
+              showAlert("Có lỗi xảy ra khi thêm tag", "error");
+            });
+        });
+
+      // Close modal when clicking outside
+      window.onclick = function (event) {
+        const modal = document.getElementById("tagModal");
+        if (event.target == modal) {
+          closeModal();
+        }
+      };
+    </script>
+  </body>
+</html>
