@@ -43,8 +43,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* Header */}
         <div className="p-6 border-b border-slate-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-lg font-bold">RF</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-lg font-bold">NW</span>
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">NW Checkin</h1>
@@ -63,7 +63,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 to={item.to}
                 className={`group relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
+                    ? "bg-gradient-to-r from-teal-400 to-teal-500 text-white shadow-lg shadow-blue-500/25"
                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
