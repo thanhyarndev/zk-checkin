@@ -1003,6 +1003,33 @@ def api_create_employee():
         conn = sqlite3.connect('checkins.db')
         cursor = conn.cursor()
         
+        # Check if employee_code already exists (including soft-deleted ones)
+        existing = cursor.execute('SELECT id, is_active FROM employees WHERE employee_code = ?', 
+                                (data.get('employee_code'),)).fetchone()
+        
+        if existing:
+            if existing[1] == 1:  # Active employee with same code
+                conn.close()
+                return jsonify({'success': False, 'message': f'Employee code "{data.get("employee_code")}" already exists'})
+            else:  # Soft-deleted employee with same code
+                # Reactivate the soft-deleted employee
+                cursor.execute('''
+                    UPDATE employees 
+                    SET name = ?, department = ?, position = ?, email = ?, phone = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (
+                    data.get('name'),
+                    data.get('department'),
+                    data.get('position'),
+                    data.get('email'),
+                    data.get('phone'),
+                    existing[0]
+                ))
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'message': 'Employee reactivated successfully', 'id': existing[0]})
+        
+        # Create new employee
         cursor.execute('''
             INSERT INTO employees (name, employee_code, department, position, email, phone, is_active)
             VALUES (?, ?, ?, ?, ?, ?, 1)
@@ -1028,8 +1055,17 @@ def api_update_employee(employee_id):
     try:
         data = request.get_json()
         conn = sqlite3.connect('checkins.db')
+        cursor = conn.cursor()
         
-        conn.execute('''
+        # Check if the new employee_code already exists for a different employee
+        existing = cursor.execute('SELECT id FROM employees WHERE employee_code = ? AND id != ?', 
+                                (data.get('employee_code'), employee_id)).fetchone()
+        
+        if existing:
+            conn.close()
+            return jsonify({'success': False, 'message': f'Employee code "{data.get("employee_code")}" already exists'})
+        
+        cursor.execute('''
             UPDATE employees 
             SET name = ?, employee_code = ?, department = ?, position = ?, email = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -1074,6 +1110,30 @@ def api_create_tag():
         conn = sqlite3.connect('checkins.db')
         cursor = conn.cursor()
         
+        # Check if rfid_uid already exists (including soft-deleted ones)
+        existing = cursor.execute('SELECT id, is_active FROM employee_tags WHERE rfid_uid = ?', 
+                                (data.get('rfid_uid'),)).fetchone()
+        
+        if existing:
+            if existing[1] == 1:  # Active tag with same UID
+                conn.close()
+                return jsonify({'success': False, 'message': f'RFID UID "{data.get("rfid_uid")}" already exists'})
+            else:  # Soft-deleted tag with same UID
+                # Reactivate the soft-deleted tag
+                cursor.execute('''
+                    UPDATE employee_tags 
+                    SET employee_id = ?, tag_name = ?, is_active = 1
+                    WHERE id = ?
+                ''', (
+                    data.get('employee_id'),
+                    data.get('tag_name'),
+                    existing[0]
+                ))
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'message': 'Tag reactivated successfully', 'id': existing[0]})
+        
+        # Create new tag
         cursor.execute('''
             INSERT INTO employee_tags (employee_id, rfid_uid, tag_name, is_active)
             VALUES (?, ?, ?, 1)
@@ -1096,8 +1156,17 @@ def api_update_tag(tag_id):
     try:
         data = request.get_json()
         conn = sqlite3.connect('checkins.db')
+        cursor = conn.cursor()
         
-        conn.execute('''
+        # Check if the new rfid_uid already exists for a different tag
+        existing = cursor.execute('SELECT id FROM employee_tags WHERE rfid_uid = ? AND id != ?', 
+                                (data.get('rfid_uid'), tag_id)).fetchone()
+        
+        if existing:
+            conn.close()
+            return jsonify({'success': False, 'message': f'RFID UID "{data.get("rfid_uid")}" already exists'})
+        
+        cursor.execute('''
             UPDATE employee_tags 
             SET employee_id = ?, rfid_uid = ?, tag_name = ?
             WHERE id = ?

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -11,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { attendanceAPI, configAPI, readerAPI } from "@/services/api";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AttendanceRecord {
   id: number;
@@ -41,6 +43,7 @@ export default function Dashboard() {
   const [readerLoading, setReaderLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showClearDialog, setShowClearDialog] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -54,6 +57,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setRecords([]);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -77,6 +81,7 @@ export default function Dashboard() {
       setReaderStatus(response.data);
     } catch (error) {
       console.error("Error fetching reader status:", error);
+      toast.error("Failed to load reader status");
     }
   };
 
@@ -85,31 +90,30 @@ export default function Dashboard() {
     try {
       if (action === "start") {
         await readerAPI.start();
+        toast.success("Reader started successfully!");
       } else {
         await readerAPI.stop();
+        toast.success("Reader stopped successfully!");
       }
       await fetchReaderStatus();
     } catch (error) {
       console.error(`Error ${action}ing reader:`, error);
+      toast.error(`Failed to ${action} reader`);
     } finally {
       setReaderLoading(false);
     }
   };
 
   const handleClearTodayData = async () => {
-    if (
-      confirm(
-        "Are you sure you want to clear all today's data? This action cannot be undone."
-      )
-    ) {
-      try {
-        await attendanceAPI.clearToday();
-        alert("Today's data cleared successfully!");
-        fetchData(); // Refresh attendance data
-      } catch (error) {
-        console.error("Error clearing data:", error);
-        alert("Error clearing today's data");
-      }
+    try {
+      await attendanceAPI.clearToday();
+      toast.success("Today's data cleared successfully!");
+      fetchData(); // Refresh attendance data
+    } catch (error) {
+      console.error("Error clearing data:", error);
+      toast.error("Failed to clear today's data");
+    } finally {
+      setShowClearDialog(false);
     }
   };
 
@@ -131,7 +135,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={handleClearTodayData}>
+          <Button variant="outline" onClick={() => setShowClearDialog(true)}>
             Clear Today's Data
           </Button>
           <div className="text-sm text-slate-500">
@@ -424,6 +428,18 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Clear Today Data Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showClearDialog}
+        title="Clear Today's Data"
+        message="Are you sure you want to clear all today's attendance data and scan logs? This action cannot be undone."
+        confirmText="Clear Data"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleClearTodayData}
+        onCancel={() => setShowClearDialog(false)}
+      />
     </div>
   );
 }

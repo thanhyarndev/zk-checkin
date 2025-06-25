@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { employeesAPI } from "@/services/api";
 
 interface Employee {
@@ -42,7 +44,11 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(
+    null
+  );
   const [formData, setFormData] = useState<EmployeeFormData>({
     name: "",
     employee_code: "",
@@ -63,6 +69,7 @@ export default function Employees() {
     } catch (error) {
       console.error("Error fetching employees:", error);
       setEmployees([]);
+      toast.error("Failed to load employees");
     } finally {
       setLoading(false);
     }
@@ -101,20 +108,32 @@ export default function Employees() {
     setShowModal(true);
   };
 
-  const handleDeleteEmployee = async (employeeId: number) => {
-    if (
-      confirm(
-        "Are you sure you want to delete this employee? This action cannot be undone."
-      )
-    ) {
-      try {
-        await employeesAPI.delete(employeeId);
-        alert("Employee deleted successfully!");
+  const handleDeleteClick = (employee: Employee) => {
+    setEmployeeToDelete(employee);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!employeeToDelete) return;
+
+    try {
+      const response = await employeesAPI.delete(employeeToDelete.id);
+      if (response.data.success) {
+        toast.success("Employee deleted successfully!");
         fetchEmployees();
-      } catch (error) {
-        console.error("Error deleting employee:", error);
-        alert("Error deleting employee");
+      } else {
+        toast.error(response.data.message || "Failed to delete employee");
       }
+    } catch (error: any) {
+      console.error("Error deleting employee:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to delete employee");
+      }
+    } finally {
+      setShowDeleteDialog(false);
+      setEmployeeToDelete(null);
     }
   };
 
@@ -123,18 +142,34 @@ export default function Employees() {
 
     try {
       if (editingEmployee) {
-        await employeesAPI.update(editingEmployee.id, formData);
-        alert("Employee updated successfully!");
+        const response = await employeesAPI.update(
+          editingEmployee.id,
+          formData
+        );
+        if (response.data.success) {
+          toast.success("Employee updated successfully!");
+          setShowModal(false);
+          fetchEmployees();
+        } else {
+          toast.error(response.data.message || "Failed to update employee");
+        }
       } else {
-        await employeesAPI.create(formData);
-        alert("Employee created successfully!");
+        const response = await employeesAPI.create(formData);
+        if (response.data.success) {
+          toast.success("Employee created successfully!");
+          setShowModal(false);
+          fetchEmployees();
+        } else {
+          toast.error(response.data.message || "Failed to create employee");
+        }
       }
-
-      setShowModal(false);
-      fetchEmployees();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving employee:", error);
-      alert("Error saving employee");
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to save employee");
+      }
     }
   };
 
@@ -235,7 +270,7 @@ export default function Employees() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDeleteEmployee(employee.id)}
+                            onClick={() => handleDeleteClick(employee)}
                             className="text-red-600 hover:text-red-700"
                           >
                             Delete
@@ -352,6 +387,21 @@ export default function Employees() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title="Delete Employee"
+        message={`Are you sure you want to delete "${employeeToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setEmployeeToDelete(null);
+        }}
+      />
     </div>
   );
 }

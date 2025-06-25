@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ export default function Config() {
       setConfig(response.data);
     } catch (error) {
       console.error("Error fetching config:", error);
+      toast.error("Failed to load configuration");
     } finally {
       setLoading(false);
     }
@@ -56,6 +58,7 @@ export default function Config() {
       setReaderStatus(response.data);
     } catch (error) {
       console.error("Error fetching reader status:", error);
+      toast.error("Failed to load reader status");
     }
   };
 
@@ -63,10 +66,10 @@ export default function Config() {
     setSaving(true);
     try {
       await configAPI.update(config);
-      alert("Configuration saved successfully!");
+      toast.success("Configuration saved successfully!");
     } catch (error) {
       console.error("Error saving config:", error);
-      alert("Error saving configuration");
+      toast.error("Failed to save configuration");
     } finally {
       setSaving(false);
     }
@@ -77,16 +80,15 @@ export default function Config() {
     try {
       if (action === "start") {
         await readerAPI.start();
+        toast.success("Reader started successfully!");
       } else {
         await readerAPI.stop();
+        toast.success("Reader stopped successfully!");
       }
       await fetchReaderStatus();
-      alert(
-        `Reader ${action === "start" ? "started" : "stopped"} successfully!`
-      );
     } catch (error) {
       console.error(`Error ${action}ing reader:`, error);
-      alert(`Error ${action}ing reader`);
+      toast.error(`Failed to ${action} reader`);
     } finally {
       setReaderLoading(false);
     }

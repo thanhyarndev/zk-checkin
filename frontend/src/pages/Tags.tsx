@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { tagsAPI, employeesAPI } from "@/services/api";
 
 interface Tag {
@@ -50,7 +52,9 @@ export default function Tags() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
   const [formData, setFormData] = useState<TagFormData>({
     employee_id: 0,
     rfid_uid: "",
@@ -76,6 +80,7 @@ export default function Tags() {
       console.error("Error fetching data:", error);
       setTags([]);
       setEmployees([]);
+      toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -109,20 +114,32 @@ export default function Tags() {
     setShowModal(true);
   };
 
-  const handleDeleteTag = async (tagId: number) => {
-    if (
-      confirm(
-        "Are you sure you want to delete this tag? This action cannot be undone."
-      )
-    ) {
-      try {
-        await tagsAPI.delete(tagId);
-        alert("Tag deleted successfully!");
+  const handleDeleteClick = (tag: Tag) => {
+    setTagToDelete(tag);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!tagToDelete) return;
+
+    try {
+      const response = await tagsAPI.delete(tagToDelete.id);
+      if (response.data.success) {
+        toast.success("Tag deleted successfully!");
         fetchData();
-      } catch (error) {
-        console.error("Error deleting tag:", error);
-        alert("Error deleting tag");
+      } else {
+        toast.error(response.data.message || "Failed to delete tag");
       }
+    } catch (error: any) {
+      console.error("Error deleting tag:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to delete tag");
+      }
+    } finally {
+      setShowDeleteDialog(false);
+      setTagToDelete(null);
     }
   };
 
@@ -130,24 +147,37 @@ export default function Tags() {
     e.preventDefault();
 
     if (formData.employee_id === 0) {
-      alert("Please select an employee");
+      toast.error("Please select an employee");
       return;
     }
 
     try {
       if (editingTag) {
-        await tagsAPI.update(editingTag.id, formData);
-        alert("Tag updated successfully!");
+        const response = await tagsAPI.update(editingTag.id, formData);
+        if (response.data.success) {
+          toast.success("Tag updated successfully!");
+          setShowModal(false);
+          fetchData();
+        } else {
+          toast.error(response.data.message || "Failed to update tag");
+        }
       } else {
-        await tagsAPI.create(formData);
-        alert("Tag created successfully!");
+        const response = await tagsAPI.create(formData);
+        if (response.data.success) {
+          toast.success("Tag created successfully!");
+          setShowModal(false);
+          fetchData();
+        } else {
+          toast.error(response.data.message || "Failed to create tag");
+        }
       }
-
-      setShowModal(false);
-      fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving tag:", error);
-      alert("Error saving tag");
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to save tag");
+      }
     }
   };
 
@@ -259,7 +289,7 @@ export default function Tags() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDeleteTag(tag.id)}
+                            onClick={() => handleDeleteClick(tag)}
                             className="text-red-600 hover:text-red-700"
                           >
                             Delete
@@ -358,6 +388,21 @@ export default function Tags() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title="Delete Tag"
+        message={`Are you sure you want to delete the tag "${tagToDelete?.rfid_uid}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setTagToDelete(null);
+        }}
+      />
     </div>
   );
 }

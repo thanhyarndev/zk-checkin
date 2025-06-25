@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -18,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { logsAPI, attendanceAPI } from "@/services/api";
 
 interface ScanLog {
@@ -40,6 +42,7 @@ export default function Logs() {
   const [searchTerm, setSearchTerm] = useState("");
   const [eventTypeFilter, setEventTypeFilter] = useState("all");
   const [pageInput, setPageInput] = useState("");
+  const [showClearDialog, setShowClearDialog] = useState(false);
 
   useEffect(() => {
     fetchLogs();
@@ -56,6 +59,7 @@ export default function Logs() {
     } catch (error) {
       console.error("Error fetching logs:", error);
       setLogs([]);
+      toast.error("Failed to load logs");
     } finally {
       setLoading(false);
     }
@@ -166,19 +170,15 @@ export default function Logs() {
   };
 
   const handleClearTodayData = async () => {
-    if (
-      confirm(
-        "Are you sure you want to clear all today's data? This action cannot be undone."
-      )
-    ) {
-      try {
-        await attendanceAPI.clearToday();
-        alert("Today's data cleared successfully!");
-        fetchLogs(); // Refresh logs
-      } catch (error) {
-        console.error("Error clearing data:", error);
-        alert("Error clearing today's data");
-      }
+    try {
+      await attendanceAPI.clearToday();
+      toast.success("Today's data cleared successfully!");
+      fetchLogs(); // Refresh logs
+    } catch (error) {
+      console.error("Error clearing data:", error);
+      toast.error("Failed to clear today's data");
+    } finally {
+      setShowClearDialog(false);
     }
   };
 
@@ -196,7 +196,7 @@ export default function Logs() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">RFID Scan Logs</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleClearTodayData}>
+          <Button variant="outline" onClick={() => setShowClearDialog(true)}>
             Clear Today's Data
           </Button>
         </div>
@@ -457,6 +457,18 @@ export default function Logs() {
           )}
         </CardContent>
       </Card>
+
+      {/* Clear Today Data Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showClearDialog}
+        title="Clear Today's Data"
+        message="Are you sure you want to clear all today's attendance data and scan logs? This action cannot be undone."
+        confirmText="Clear Data"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleClearTodayData}
+        onCancel={() => setShowClearDialog(false)}
+      />
     </div>
   );
 }
