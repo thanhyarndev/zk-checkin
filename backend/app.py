@@ -862,18 +862,29 @@ def api_attendance():
 def api_employees():
     conn = sqlite3.connect('checkins.db')
     employees = conn.execute('''
-        SELECT e.*, COUNT(et.id) as tag_count
+        SELECT e.id, e.name, e.employee_code, e.department, e.position, e.email, e.phone, e.is_active, e.created_at, e.updated_at,
+               COUNT(et.id) as tag_count
         FROM employees e
         LEFT JOIN employee_tags et ON e.id = et.employee_id AND et.is_active = 1
         WHERE e.is_active = 1
-        GROUP BY e.id
+        GROUP BY e.id, e.name, e.employee_code, e.department, e.position, e.email, e.phone, e.is_active, e.created_at, e.updated_at
         ORDER BY e.name
     ''').fetchall()
     result = []
     for emp in employees:
-        emp_dict = dict(zip([column[0] for column in conn.execute('PRAGMA table_info(employees)')], emp[:-1]))
-        emp_dict['tag_count'] = emp[-1]
-        result.append(emp_dict)
+        result.append({
+            'id': emp[0],
+            'name': emp[1],
+            'employee_code': emp[2],
+            'department': emp[3],
+            'position': emp[4],
+            'email': emp[5],
+            'phone': emp[6],
+            'is_active': bool(emp[7]),
+            'created_at': emp[8],
+            'updated_at': emp[9],
+            'tag_count': emp[10]
+        })
     conn.close()
     return jsonify(result)
 
@@ -881,19 +892,25 @@ def api_employees():
 def api_tags():
     conn = sqlite3.connect('checkins.db')
     tags = conn.execute('''
-        SELECT et.*, e.name as employee_name, e.employee_code
+        SELECT et.id, et.employee_id, et.rfid_uid, et.tag_name, et.is_active, et.created_at,
+               e.name as employee_name, e.employee_code
         FROM employee_tags et
         JOIN employees e ON et.employee_id = e.id
         WHERE et.is_active = 1 AND e.is_active = 1
         ORDER BY e.name, et.rfid_uid
     ''').fetchall()
-    columns = [column[0] for column in conn.execute('PRAGMA table_info(employee_tags)')]
     result = []
     for tag in tags:
-        tag_dict = dict(zip(columns, tag[:len(columns)]))
-        tag_dict['employee_name'] = tag[-2]
-        tag_dict['employee_code'] = tag[-1]
-        result.append(tag_dict)
+        result.append({
+            'id': tag[0],
+            'employee_id': tag[1],
+            'rfid_uid': tag[2],
+            'tag_name': tag[3],
+            'is_active': bool(tag[4]),
+            'created_at': tag[5],
+            'employee_name': tag[6],
+            'employee_code': tag[7]
+        })
     conn.close()
     return jsonify(result)
 
@@ -911,7 +928,6 @@ def api_logs():
         FROM rfid_scan_logs sl
         LEFT JOIN employees e ON sl.employee_id = e.id
         ORDER BY sl.timestamp DESC
-        LIMIT 100
     ''').fetchall()
     result = []
     for log in logs:
