@@ -36,6 +36,7 @@ api.interceptors.response.use(
 export const attendanceAPI = {
   getAll: () => api.get("/api/attendance"),
   getToday: () => api.get("/api/attendance/today"),
+  clearToday: () => api.post("/api/attendance/clear_today"),
 };
 
 export const employeesAPI = {
@@ -64,6 +65,13 @@ export const logsAPI = {
 export const configAPI = {
   get: () => api.get("/api/config"),
   update: (data: any) => api.post("/api/config", data),
+};
+
+// Reader Control APIs
+export const readerAPI = {
+  getStatus: () => axios.get(`${API_BASE_URL}/api/reader/status`),
+  start: () => axios.post(`${API_BASE_URL}/api/reader/start`),
+  stop: () => axios.post(`${API_BASE_URL}/api/reader/stop`),
 };
 
 export default api;

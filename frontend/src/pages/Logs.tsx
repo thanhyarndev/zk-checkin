@@ -10,6 +10,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { logsAPI } from "@/services/api";
 
 interface ScanLog {
@@ -25,15 +33,24 @@ interface ScanLog {
 
 export default function Logs() {
   const [logs, setLogs] = useState<ScanLog[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<ScanLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [logsPerPage] = useState(20);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [eventTypeFilter, setEventTypeFilter] = useState("all");
 
   useEffect(() => {
     fetchLogs();
   }, []);
 
+  useEffect(() => {
+    filterLogs();
+  }, [logs, searchTerm, eventTypeFilter]);
+
   const fetchLogs = async () => {
     try {
-      const response = await logsAPI.getRecent(100);
+      const response = await logsAPI.getRecent(1000); // Get more logs
       setLogs(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching logs:", error);
@@ -41,6 +58,30 @@ export default function Logs() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterLogs = () => {
+    let filtered = logs;
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (log) =>
+          log.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.employee_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.rfid_uid.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by event type
+    if (eventTypeFilter !== "all") {
+      filtered = filtered.filter(
+        (log) => log.event_type.toLowerCase() === eventTypeFilter.toLowerCase()
+      );
+    }
+
+    setFilteredLogs(filtered);
+    setCurrentPage(1); // Reset to first page when filtering
   };
 
   const getEventTypeColor = (eventType: string) => {
@@ -55,6 +96,14 @@ export default function Logs() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Pagination
+  const indexOfLastLog = currentPage * logsPerPage;
+  const indexOfFirstLog = indexOfLastLog - logsPerPage;
+  const currentLogs = filteredLogs.slice(indexOfFirstLog, indexOfLastLog);
+  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   if (loading) {
     return (
@@ -135,10 +184,63 @@ export default function Logs() {
         </Card>
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                Search
+              </label>
+              <Input
+                placeholder="Search by name, code, or RFID UID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                Event Type
+              </label>
+              <Select
+                value={eventTypeFilter}
+                onValueChange={setEventTypeFilter}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Events</SelectItem>
+                  <SelectItem value="check-in">Check-in</SelectItem>
+                  <SelectItem value="check-out">Check-out</SelectItem>
+                  <SelectItem value="invalid">Invalid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm("");
+                  setEventTypeFilter("all");
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Logs Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Scan Logs</CardTitle>
+          <CardTitle>
+            Recent Scan Logs ({filteredLogs.length} results)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -155,20 +257,20 @@ export default function Logs() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.length === 0 ? (
+                {currentLogs.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="text-center py-8 text-muted-foreground"
+                      className="text-center py-8 text-slate-500"
                     >
                       No scan logs found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  logs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-muted/50">
+                  currentLogs.map((log) => (
+                    <TableRow key={log.id} className="hover:bg-slate-50">
                       <TableCell className="font-mono text-sm">
-                        {new Date(log.scan_time).toLocaleString("vi-VN")}
+                        {new Date(log.scan_time).toLocaleString("en-US")}
                       </TableCell>
                       <TableCell className="font-medium">
                         {log.employee_name}
@@ -207,6 +309,47 @@ export default function Logs() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-slate-500">
+                Showing {indexOfFirstLog + 1} to{" "}
+                {Math.min(indexOfLastLog, filteredLogs.length)} of{" "}
+                {filteredLogs.length} results
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => paginate(page)}
+                    >
+                      {page}
+                    </Button>
+                  )
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

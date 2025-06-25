@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { Card } from "@/components/ui/card";
 
 const navItems = [
   {
@@ -40,7 +39,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar */}
-      <aside className="w-72 bg-white shadow-xl border-r border-slate-200">
+      <aside className="w-72 bg-white shadow-xl border-r border-slate-200 flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-slate-200">
           <div className="flex items-center space-x-3">
@@ -55,7 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 flex-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to;
             return (
@@ -105,7 +104,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 bg-white">
+        <div className="p-4 border-t border-slate-200 bg-white">
           <div className="text-center">
             <p className="text-xs text-slate-500">System Status</p>
             <div className="flex items-center justify-center space-x-2 mt-1">

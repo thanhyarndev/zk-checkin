@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { attendanceAPI, configAPI } from "@/services/api";
+import { attendanceAPI, configAPI, readerAPI } from "@/services/api";
 
 interface AttendanceRecord {
   id: number;
@@ -28,9 +28,17 @@ interface SystemConfig {
   checkout_end: string;
 }
 
+interface ReaderStatus {
+  running: boolean;
+}
+
 export default function Dashboard() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [config, setConfig] = useState<SystemConfig | null>(null);
+  const [readerStatus, setReaderStatus] = useState<ReaderStatus>({
+    running: false,
+  });
+  const [readerLoading, setReaderLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -53,16 +61,40 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, []);
+    fetchReaderStatus();
 
-  // Update current time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
+    // Update current time every second
+    const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => clearInterval(timeInterval);
   }, []);
+
+  const fetchReaderStatus = async () => {
+    try {
+      const response = await readerAPI.getStatus();
+      setReaderStatus(response.data);
+    } catch (error) {
+      console.error("Error fetching reader status:", error);
+    }
+  };
+
+  const handleReaderControl = async (action: "start" | "stop") => {
+    setReaderLoading(true);
+    try {
+      if (action === "start") {
+        await readerAPI.start();
+      } else {
+        await readerAPI.stop();
+      }
+      await fetchReaderStatus();
+    } catch (error) {
+      console.error(`Error ${action}ing reader:`, error);
+    } finally {
+      setReaderLoading(false);
+    }
+  };
 
   const presentCount = records.filter((r) => r.status === "present").length;
   const absentCount = records.filter((r) => r.status === "absent").length;
@@ -82,7 +114,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
         <div className="text-sm text-slate-500">
-          {currentTime.toLocaleDateString("vi-VN", {
+          {currentTime.toLocaleDateString("en-US", {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -103,7 +135,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600">
-                {currentTime.toLocaleTimeString("vi-VN", {
+                {currentTime.toLocaleTimeString("en-US", {
                   hour: "2-digit",
                   minute: "2-digit",
                   second: "2-digit",
@@ -113,7 +145,7 @@ export default function Dashboard() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-semibold text-slate-700">
-                {currentTime.toLocaleDateString("vi-VN", {
+                {currentTime.toLocaleDateString("en-US", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric",
@@ -123,7 +155,7 @@ export default function Dashboard() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-semibold text-slate-700">
-                {currentTime.toLocaleDateString("vi-VN", { weekday: "long" })}
+                {currentTime.toLocaleDateString("en-US", { weekday: "long" })}
               </div>
               <div className="text-sm text-slate-600 mt-1">Day of Week</div>
             </div>
@@ -131,8 +163,55 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* Reader Control Section */}
+      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <span className="text-2xl">📡</span>
+            <span>RFID Reader Control</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    readerStatus.running ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></div>
+                <span className="font-medium">
+                  {readerStatus.running ? "Reader Running" : "Reader Stopped"}
+                </span>
+              </div>
+              <Badge variant={readerStatus.running ? "default" : "secondary"}>
+                {readerStatus.running ? "Online" : "Offline"}
+              </Badge>
+            </div>
+            <div className="flex space-x-3">
+              <Button
+                onClick={() => handleReaderControl("start")}
+                disabled={readerStatus.running || readerLoading}
+                variant="outline"
+                size="sm"
+              >
+                {readerLoading ? "Starting..." : "Start Reader"}
+              </Button>
+              <Button
+                onClick={() => handleReaderControl("stop")}
+                disabled={!readerStatus.running || readerLoading}
+                variant="outline"
+                size="sm"
+              >
+                {readerLoading ? "Stopping..." : "Stop Reader"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-600">
@@ -175,6 +254,23 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-red-600">{absentCount}</div>
             <p className="text-xs text-slate-500 mt-1">Not checked in</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">
+              Attendance Rate
+            </CardTitle>
+            <span className="text-2xl">📊</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-600">
+              {totalCount > 0
+                ? Math.round((presentCount / totalCount) * 100)
+                : 0}
+              %
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -271,14 +367,14 @@ export default function Dashboard() {
                       <TableCell>
                         {record.check_in_time
                           ? new Date(record.check_in_time).toLocaleTimeString(
-                              "vi-VN"
+                              "en-US"
                             )
                           : "—"}
                       </TableCell>
                       <TableCell>
                         {record.check_out_time
                           ? new Date(record.check_out_time).toLocaleTimeString(
-                              "vi-VN"
+                              "en-US"
                             )
                           : "—"}
                       </TableCell>
