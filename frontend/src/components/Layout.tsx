@@ -47,8 +47,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="text-white text-lg font-bold">RF</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">RFID Checkin</h1>
-              <p className="text-sm text-slate-500">Management System</p>
+              <h1 className="text-xl font-bold text-slate-900">NW Checkin</h1>
+              <p className="text-sm text-slate-500">RFID Management System</p>
             </div>
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 bg-white">
+        {/* <div className="p-4 border-t border-slate-200 bg-white">
           <div className="text-center">
             <p className="text-xs text-slate-500">System Status</p>
             <div className="flex items-center justify-center space-x-2 mt-1">
@@ -112,7 +112,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="text-sm font-medium text-slate-700">Online</span>
             </div>
           </div>
-        </div>
+        </div> */}
       </aside>
 
       {/* Main Content */}

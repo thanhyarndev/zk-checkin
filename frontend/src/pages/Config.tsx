@@ -286,7 +286,7 @@ export default function Config() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                RFID Checkin
+                Nextwaves Check-in v1.0
               </div>
               <div className="text-sm text-slate-600 mt-1">System Version</div>
             </div>
