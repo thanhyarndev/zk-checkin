@@ -64,7 +64,7 @@ export const logsAPI = {
 
 export const configAPI = {
   get: () => api.get("/api/config"),
-  update: (data: any) => api.post("/api/config", data),
+  update: (data: any) => api.post("/admin/config/update", data),
 };
 
 // Reader Control APIs

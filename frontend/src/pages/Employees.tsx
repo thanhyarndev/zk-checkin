@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { employeesAPI } from "@/services/api";
 
 interface Employee {
@@ -21,12 +23,34 @@ interface Employee {
   email: string;
   phone: string;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
   tag_count: number;
+}
+
+interface EmployeeFormData {
+  name: string;
+  employee_code: string;
+  department: string;
+  position: string;
+  email: string;
+  phone: string;
 }
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [formData, setFormData] = useState<EmployeeFormData>({
+    name: "",
+    employee_code: "",
+    department: "",
+    position: "",
+    email: "",
+    phone: "",
+  });
 
   useEffect(() => {
     fetchEmployees();
@@ -44,6 +68,80 @@ export default function Employees() {
     }
   };
 
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.employee_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.department.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleAddEmployee = () => {
+    setEditingEmployee(null);
+    setFormData({
+      name: "",
+      employee_code: "",
+      department: "",
+      position: "",
+      email: "",
+      phone: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setFormData({
+      name: employee.name,
+      employee_code: employee.employee_code,
+      department: employee.department || "",
+      position: employee.position || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteEmployee = async (employeeId: number) => {
+    if (
+      confirm(
+        "Are you sure you want to delete this employee? This action cannot be undone."
+      )
+    ) {
+      try {
+        await employeesAPI.delete(employeeId);
+        alert("Employee deleted successfully!");
+        fetchEmployees();
+      } catch (error) {
+        console.error("Error deleting employee:", error);
+        alert("Error deleting employee");
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      if (editingEmployee) {
+        await employeesAPI.update(editingEmployee.id, formData);
+        alert("Employee updated successfully!");
+      } else {
+        await employeesAPI.create(formData);
+        alert("Employee created successfully!");
+      }
+
+      setShowModal(false);
+      fetchEmployees();
+    } catch (error) {
+      console.error("Error saving employee:", error);
+      alert("Error saving employee");
+    }
+  };
+
+  const handleInputChange = (field: keyof EmployeeFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -56,57 +154,30 @@ export default function Employees() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Employees Management</h1>
-        <Button>Add Employee</Button>
+        <h1 className="text-3xl font-bold text-slate-900">
+          Employee Management
+        </h1>
+        <Button onClick={handleAddEmployee}>Add Employee</Button>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Employees
-            </CardTitle>
-            <span className="text-2xl">👥</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{employees.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Employees
-            </CardTitle>
-            <span className="text-2xl">✅</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {employees.filter((emp) => emp.is_active).length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total RFID Tags
-            </CardTitle>
-            <span className="text-2xl">🏷️</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {employees.reduce((sum, emp) => sum + emp.tag_count, 0)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Search Employees</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            placeholder="Search by name, code, or department..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </CardContent>
+      </Card>
 
       {/* Employees Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Employee List</CardTitle>
+          <CardTitle>Employees ({filteredEmployees.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -120,56 +191,53 @@ export default function Employees() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>RFID Tags</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.length === 0 ? (
+                {filteredEmployees.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
-                      className="text-center py-8 text-muted-foreground"
+                      colSpan={8}
+                      className="text-center py-8 text-slate-500"
                     >
                       No employees found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  employees.map((employee) => (
-                    <TableRow key={employee.id} className="hover:bg-muted/50">
+                  filteredEmployees.map((employee) => (
+                    <TableRow key={employee.id} className="hover:bg-slate-50">
                       <TableCell className="font-mono">
                         {employee.employee_code}
                       </TableCell>
                       <TableCell className="font-medium">
                         {employee.name}
                       </TableCell>
-                      <TableCell>{employee.department}</TableCell>
-                      <TableCell>{employee.position}</TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.phone}</TableCell>
+                      <TableCell>{employee.department || "—"}</TableCell>
+                      <TableCell>{employee.position || "—"}</TableCell>
+                      <TableCell>{employee.email || "—"}</TableCell>
+                      <TableCell>{employee.phone || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {employee.tag_count} tags
+                        <Badge variant="secondary">
+                          {employee.tag_count} tag
+                          {employee.tag_count !== 1 ? "s" : ""}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={employee.is_active ? "default" : "secondary"}
-                          className={
-                            employee.is_active
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }
-                        >
-                          {employee.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditEmployee(employee)}
+                          >
                             Edit
                           </Button>
-                          <Button size="sm" variant="destructive">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteEmployee(employee.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
                             Delete
                           </Button>
                         </div>
@@ -182,6 +250,108 @@ export default function Employees() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add/Edit Employee Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">
+                {editingEmployee ? "Edit Employee" : "Add Employee"}
+              </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowModal(false)}
+              >
+                ✕
+              </Button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="employee_code">Employee Code *</Label>
+                  <Input
+                    id="employee_code"
+                    value={formData.employee_code}
+                    onChange={(e) =>
+                      handleInputChange("employee_code", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    value={formData.department}
+                    onChange={(e) =>
+                      handleInputChange("department", e.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="position">Position</Label>
+                  <Input
+                    id="position"
+                    value={formData.position}
+                    onChange={(e) =>
+                      handleInputChange("position", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingEmployee ? "Update" : "Create"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -995,6 +995,141 @@ def api_clear_today_attendance():
         logger.error(f"Error clearing data: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+# Employee Management RESTful APIs
+@app.route('/api/employees', methods=['POST'])
+def api_create_employee():
+    try:
+        data = request.get_json()
+        conn = sqlite3.connect('checkins.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO employees (name, employee_code, department, position, email, phone, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        ''', (
+            data.get('name'),
+            data.get('employee_code'),
+            data.get('department'),
+            data.get('position'),
+            data.get('email'),
+            data.get('phone')
+        ))
+        
+        employee_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Employee created successfully', 'id': employee_id})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/employees/<int:employee_id>', methods=['PUT'])
+def api_update_employee(employee_id):
+    try:
+        data = request.get_json()
+        conn = sqlite3.connect('checkins.db')
+        
+        conn.execute('''
+            UPDATE employees 
+            SET name = ?, employee_code = ?, department = ?, position = ?, email = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            data.get('name'),
+            data.get('employee_code'),
+            data.get('department'),
+            data.get('position'),
+            data.get('email'),
+            data.get('phone'),
+            employee_id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Employee updated successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/employees/<int:employee_id>', methods=['DELETE'])
+def api_delete_employee(employee_id):
+    try:
+        conn = sqlite3.connect('checkins.db')
+        
+        # Soft delete - set is_active to 0
+        conn.execute('UPDATE employees SET is_active = 0 WHERE id = ?', (employee_id,))
+        conn.execute('UPDATE employee_tags SET is_active = 0 WHERE employee_id = ?', (employee_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Employee deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# Tag Management RESTful APIs
+@app.route('/api/tags', methods=['POST'])
+def api_create_tag():
+    try:
+        data = request.get_json()
+        conn = sqlite3.connect('checkins.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO employee_tags (employee_id, rfid_uid, tag_name, is_active)
+            VALUES (?, ?, ?, 1)
+        ''', (
+            data.get('employee_id'),
+            data.get('rfid_uid'),
+            data.get('tag_name')
+        ))
+        
+        tag_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Tag created successfully', 'id': tag_id})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/tags/<int:tag_id>', methods=['PUT'])
+def api_update_tag(tag_id):
+    try:
+        data = request.get_json()
+        conn = sqlite3.connect('checkins.db')
+        
+        conn.execute('''
+            UPDATE employee_tags 
+            SET employee_id = ?, rfid_uid = ?, tag_name = ?
+            WHERE id = ?
+        ''', (
+            data.get('employee_id'),
+            data.get('rfid_uid'),
+            data.get('tag_name'),
+            tag_id
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Tag updated successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/tags/<int:tag_id>', methods=['DELETE'])
+def api_delete_tag(tag_id):
+    try:
+        conn = sqlite3.connect('checkins.db')
+        
+        # Soft delete - set is_active to 0
+        conn.execute('UPDATE employee_tags SET is_active = 0 WHERE id = ?', (tag_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Tag deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 # ----- Main Entry Point -----
 if __name__ == '__main__':
     init_db()

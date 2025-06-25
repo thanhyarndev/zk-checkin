@@ -42,24 +42,24 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  const fetchData = async () => {
+    try {
+      const [attendanceRes, configRes] = await Promise.all([
+        attendanceAPI.getAll(),
+        configAPI.get(),
+      ]);
+
+      setRecords(Array.isArray(attendanceRes.data) ? attendanceRes.data : []);
+      setConfig(configRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [attendanceRes, configRes] = await Promise.all([
-          attendanceAPI.getAll(),
-          configAPI.get(),
-        ]);
-
-        setRecords(Array.isArray(attendanceRes.data) ? attendanceRes.data : []);
-        setConfig(configRes.data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setRecords([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
     fetchReaderStatus();
 
@@ -96,6 +96,23 @@ export default function Dashboard() {
     }
   };
 
+  const handleClearTodayData = async () => {
+    if (
+      confirm(
+        "Are you sure you want to clear all today's data? This action cannot be undone."
+      )
+    ) {
+      try {
+        await attendanceAPI.clearToday();
+        alert("Today's data cleared successfully!");
+        fetchData(); // Refresh attendance data
+      } catch (error) {
+        console.error("Error clearing data:", error);
+        alert("Error clearing today's data");
+      }
+    }
+  };
+
   const presentCount = records.filter((r) => r.status === "present").length;
   const absentCount = records.filter((r) => r.status === "absent").length;
   const totalCount = records.length;
@@ -113,13 +130,18 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <div className="text-sm text-slate-500">
-          {currentTime.toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={handleClearTodayData}>
+            Clear Today's Data
+          </Button>
+          <div className="text-sm text-slate-500">
+            {currentTime.toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </div>
         </div>
       </div>
 

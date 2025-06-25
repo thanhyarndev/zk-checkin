@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { logsAPI } from "@/services/api";
+import { logsAPI, attendanceAPI } from "@/services/api";
 
 interface ScanLog {
   id: number;
@@ -39,6 +39,7 @@ export default function Logs() {
   const [logsPerPage] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   const [eventTypeFilter, setEventTypeFilter] = useState("all");
+  const [pageInput, setPageInput] = useState("");
 
   useEffect(() => {
     fetchLogs();
@@ -86,14 +87,55 @@ export default function Logs() {
 
   const getEventTypeColor = (eventType: string) => {
     switch (eventType.toLowerCase()) {
+      case "checkin":
       case "check-in":
         return "bg-green-100 text-green-800";
+      case "checkout":
       case "check-out":
         return "bg-red-100 text-red-800";
-      case "invalid":
+      case "ignored":
         return "bg-yellow-100 text-yellow-800";
+      case "unknown_employee":
+        return "bg-orange-100 text-orange-800";
+      case "outside_hours":
+        return "bg-purple-100 text-purple-800";
+      case "recent_scan":
+        return "bg-blue-100 text-blue-800";
+      case "already_checked_in":
+        return "bg-indigo-100 text-indigo-800";
+      case "already_checked_out":
+        return "bg-pink-100 text-pink-800";
+      case "no_checkin":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getEventTypeDisplay = (eventType: string) => {
+    switch (eventType.toLowerCase()) {
+      case "checkin":
+      case "check-in":
+        return "Check-in";
+      case "checkout":
+      case "check-out":
+        return "Check-out";
+      case "ignored":
+        return "Ignored";
+      case "unknown_employee":
+        return "Unknown Employee";
+      case "outside_hours":
+        return "Outside Hours";
+      case "recent_scan":
+        return "Recent Scan";
+      case "already_checked_in":
+        return "Already Checked-in";
+      case "already_checked_out":
+        return "Already Checked-out";
+      case "no_checkin":
+        return "No Check-in";
+      default:
+        return eventType;
     }
   };
 
@@ -103,7 +145,42 @@ export default function Logs() {
   const currentLogs = filteredLogs.slice(indexOfFirstLog, indexOfLastLog);
   const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
 
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  const paginate = (pageNumber: number) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+      setPageInput("");
+    }
+  };
+
+  const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPageInput(e.target.value);
+  };
+
+  const handlePageInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pageNumber = parseInt(pageInput);
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+      setPageInput("");
+    }
+  };
+
+  const handleClearTodayData = async () => {
+    if (
+      confirm(
+        "Are you sure you want to clear all today's data? This action cannot be undone."
+      )
+    ) {
+      try {
+        await attendanceAPI.clearToday();
+        alert("Today's data cleared successfully!");
+        fetchLogs(); // Refresh logs
+      } catch (error) {
+        console.error("Error clearing data:", error);
+        alert("Error clearing today's data");
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -119,8 +196,9 @@ export default function Logs() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">RFID Scan Logs</h1>
         <div className="flex gap-2">
-          <Button variant="outline">Export Logs</Button>
-          <Button variant="outline">Clear Logs</Button>
+          <Button variant="outline" onClick={handleClearTodayData}>
+            Clear Today's Data
+          </Button>
         </div>
       </div>
 
@@ -144,9 +222,8 @@ export default function Logs() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               {
-                logs.filter(
-                  (log) => log.event_type.toLowerCase() === "check-in"
-                ).length
+                logs.filter((log) => log.event_type.toLowerCase() === "checkin")
+                  .length
               }
             </div>
           </CardContent>
@@ -161,7 +238,7 @@ export default function Logs() {
             <div className="text-2xl font-bold text-red-600">
               {
                 logs.filter(
-                  (log) => log.event_type.toLowerCase() === "check-out"
+                  (log) => log.event_type.toLowerCase() === "checkout"
                 ).length
               }
             </div>
@@ -170,13 +247,13 @@ export default function Logs() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Invalid Scans</CardTitle>
+            <CardTitle className="text-sm font-medium">Ignored Scans</CardTitle>
             <span className="text-2xl">⚠️</span>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
               {
-                logs.filter((log) => log.event_type.toLowerCase() === "invalid")
+                logs.filter((log) => log.event_type.toLowerCase() === "ignored")
                   .length
               }
             </div>
@@ -214,9 +291,21 @@ export default function Logs() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Events</SelectItem>
-                  <SelectItem value="check-in">Check-in</SelectItem>
-                  <SelectItem value="check-out">Check-out</SelectItem>
-                  <SelectItem value="invalid">Invalid</SelectItem>
+                  <SelectItem value="checkin">Check-in</SelectItem>
+                  <SelectItem value="checkout">Check-out</SelectItem>
+                  <SelectItem value="ignored">Ignored</SelectItem>
+                  <SelectItem value="unknown_employee">
+                    Unknown Employee
+                  </SelectItem>
+                  <SelectItem value="outside_hours">Outside Hours</SelectItem>
+                  <SelectItem value="recent_scan">Recent Scan</SelectItem>
+                  <SelectItem value="already_checked_in">
+                    Already Checked-in
+                  </SelectItem>
+                  <SelectItem value="already_checked_out">
+                    Already Checked-out
+                  </SelectItem>
+                  <SelectItem value="no_checkin">No Check-in</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -283,7 +372,7 @@ export default function Logs() {
                       </TableCell>
                       <TableCell>
                         <Badge className={getEventTypeColor(log.event_type)}>
-                          {log.event_type}
+                          {getEventTypeDisplay(log.event_type)}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
@@ -310,7 +399,7 @@ export default function Logs() {
             </Table>
           </div>
 
-          {/* Pagination */}
+          {/* Improved Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6">
               <div className="text-sm text-slate-500">
@@ -318,7 +407,7 @@ export default function Logs() {
                 {Math.min(indexOfLastLog, filteredLogs.length)} of{" "}
                 {filteredLogs.length} results
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-4">
                 <Button
                   variant="outline"
                   size="sm"
@@ -327,18 +416,34 @@ export default function Logs() {
                 >
                   Previous
                 </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => paginate(page)}
-                    >
-                      {page}
-                    </Button>
-                  )
-                )}
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600">Page</span>
+                  <span className="font-medium">{currentPage}</span>
+                  <span className="text-sm text-slate-600">
+                    of {totalPages}
+                  </span>
+                </div>
+
+                <form
+                  onSubmit={handlePageInputSubmit}
+                  className="flex items-center gap-2"
+                >
+                  <span className="text-sm text-slate-600">Go to:</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={totalPages}
+                    value={pageInput}
+                    onChange={handlePageInputChange}
+                    className="w-16 h-8 text-center"
+                    placeholder="Page"
+                  />
+                  <Button type="submit" size="sm" variant="outline">
+                    Go
+                  </Button>
+                </form>
+
                 <Button
                   variant="outline"
                   size="sm"
