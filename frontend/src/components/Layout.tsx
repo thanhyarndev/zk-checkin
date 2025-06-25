@@ -2,43 +2,124 @@ import { Link, useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: "📊" },
-  { to: "/employees", label: "Employees", icon: "👥" },
-  { to: "/tags", label: "Tags", icon: "🏷️" },
-  { to: "/logs", label: "Logs", icon: "📋" },
-  { to: "/config", label: "Config", icon: "⚙️" },
+  {
+    to: "/",
+    label: "Dashboard",
+    icon: "📊",
+    description: "Overview & Analytics",
+  },
+  {
+    to: "/employees",
+    label: "Employees",
+    icon: "👥",
+    description: "Manage Staff",
+  },
+  {
+    to: "/tags",
+    label: "RFID Tags",
+    icon: "🏷️",
+    description: "Tag Management",
+  },
+  {
+    to: "/logs",
+    label: "Activity Logs",
+    icon: "📋",
+    description: "System Logs",
+  },
+  {
+    to: "/config",
+    label: "Settings",
+    icon: "⚙️",
+    description: "System Config",
+  },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-muted">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar */}
-      <aside className="w-64 p-4 bg-background border-r">
-        <Card className="p-4">
-          <h2 className="text-lg font-bold mb-6 text-primary">RFID Checkin</h2>
-          <nav className="flex flex-col gap-2">
-            {navItems.map((item) => (
+      <aside className="w-72 bg-white shadow-xl border-r border-slate-200">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-lg font-bold">RF</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">RFID Checkin</h1>
+              <p className="text-sm text-slate-500">Management System</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="p-4 space-y-2">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.to;
+            return (
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                  location.pathname === item.to
-                    ? "bg-primary text-primary-foreground font-medium"
-                    : "hover:bg-accent hover:text-accent-foreground"
+                className={`group relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  isActive
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
+                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                <span>{item.icon}</span>
-                {item.label}
+                {/* Active indicator */}
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
+                )}
+
+                {/* Icon */}
+                <span
+                  className={`text-xl transition-transform duration-200 ${
+                    isActive ? "scale-110" : "group-hover:scale-110"
+                  }`}
+                >
+                  {item.icon}
+                </span>
+
+                {/* Text */}
+                <div className="flex-1">
+                  <div
+                    className={`font-medium ${
+                      isActive ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    {item.label}
+                  </div>
+                  <div
+                    className={`text-xs ${
+                      isActive ? "text-blue-100" : "text-slate-500"
+                    }`}
+                  >
+                    {item.description}
+                  </div>
+                </div>
               </Link>
-            ))}
-          </nav>
-        </Card>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 bg-white">
+          <div className="text-center">
+            <p className="text-xs text-slate-500">System Status</p>
+            <div className="flex items-center justify-center space-x-2 mt-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-slate-700">Online</span>
+            </div>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto">
+        <div className="p-8">{children}</div>
+      </main>
     </div>
   );
 }
