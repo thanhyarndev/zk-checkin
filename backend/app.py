@@ -8,6 +8,7 @@ import threading
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 from zk import connect_reader, start_inventory, stop_inventory, RFIDTag
+from flask_cors import CORS
 
 # ----- Logging Configuration -----
 logging.basicConfig(
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # ----- Flask & Socket.IO Setup -----
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 app.config['SECRET_KEY'] = 'rfid-checkin-secret-key'
 socketio = SocketIO(
     app,
@@ -828,6 +830,154 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     logger.info(f"Client disconnected: {request.sid}")
+
+# ----- API Routes -----
+@app.route('/api/attendance')
+def api_attendance():
+    today = datetime.now().strftime('%Y-%m-%d')
+    conn = sqlite3.connect('checkins.db')
+    employees = conn.execute('''
+        SELECT e.id, e.name,
+               (SELECT GROUP_CONCAT(et.rfid_uid, ', ') FROM employee_tags et WHERE et.employee_id = e.id AND et.is_active = 1) as rfid_uids,
+               a.check_in_time, a.check_out_time
+        FROM employees e
+        LEFT JOIN attendances a ON e.id = a.employee_id AND a.date = ?
+        WHERE e.is_active = 1
+        ORDER BY e.name
+    ''', (today,)).fetchall()
+    records = []
+    for emp_id, name, rfid_uids, check_in, check_out in employees:
+        records.append({
+            'id': emp_id,
+            'name': name,
+            'rfid_uids': rfid_uids or '',
+            'check_in_time': check_in,
+            'check_out_time': check_out,
+            'status': 'present' if check_in else 'absent'
+        })
+    conn.close()
+    return jsonify(records)
+
+@app.route('/api/employees')
+def api_employees():
+    conn = sqlite3.connect('checkins.db')
+    employees = conn.execute('''
+        SELECT e.*, COUNT(et.id) as tag_count
+        FROM employees e
+        LEFT JOIN employee_tags et ON e.id = et.employee_id AND et.is_active = 1
+        WHERE e.is_active = 1
+        GROUP BY e.id
+        ORDER BY e.name
+    ''').fetchall()
+    result = []
+    for emp in employees:
+        emp_dict = dict(zip([column[0] for column in conn.execute('PRAGMA table_info(employees)')], emp[:-1]))
+        emp_dict['tag_count'] = emp[-1]
+        result.append(emp_dict)
+    conn.close()
+    return jsonify(result)
+
+@app.route('/api/tags')
+def api_tags():
+    conn = sqlite3.connect('checkins.db')
+    tags = conn.execute('''
+        SELECT et.*, e.name as employee_name, e.employee_code
+        FROM employee_tags et
+        JOIN employees e ON et.employee_id = e.id
+        WHERE et.is_active = 1 AND e.is_active = 1
+        ORDER BY e.name, et.rfid_uid
+    ''').fetchall()
+    columns = [column[0] for column in conn.execute('PRAGMA table_info(employee_tags)')]
+    result = []
+    for tag in tags:
+        tag_dict = dict(zip(columns, tag[:len(columns)]))
+        tag_dict['employee_name'] = tag[-2]
+        tag_dict['employee_code'] = tag[-1]
+        result.append(tag_dict)
+    conn.close()
+    return jsonify(result)
+
+@app.route('/api/logs')
+def api_logs():
+    conn = sqlite3.connect('checkins.db')
+    logs = conn.execute('''
+        SELECT sl.id, sl.rfid_uid, e.name as employee_name, e.employee_code, sl.timestamp, 
+               CASE 
+                   WHEN sl.status = 'check_in' THEN 'check-in'
+                   WHEN sl.status = 'check_out' THEN 'check-out'
+                   ELSE sl.status
+               END as event_type,
+               sl.reader_id as device_id, 'success' as status
+        FROM rfid_scan_logs sl
+        LEFT JOIN employees e ON sl.employee_id = e.id
+        ORDER BY sl.timestamp DESC
+        LIMIT 100
+    ''').fetchall()
+    result = []
+    for log in logs:
+        result.append({
+            'id': log[0],
+            'rfid_uid': log[1],
+            'employee_name': log[2] or 'Unknown',
+            'employee_code': log[3] or 'N/A',
+            'scan_time': log[4],
+            'event_type': log[5],
+            'device_id': log[6],
+            'status': log[7]
+        })
+    conn.close()
+    return jsonify(result)
+
+@app.route('/api/config')
+def api_config():
+    config = get_system_config()
+    return jsonify(config)
+
+@app.route('/api/reader/status')
+def api_reader_status():
+    return jsonify({'running': reader_running})
+
+@app.route('/api/reader/start', methods=['POST'])
+def api_reader_start():
+    global reader_running, reader_thread_obj
+    with reader_thread_lock:
+        if reader_running:
+            return jsonify({'success': False, 'message': 'Reader already running'})
+        reader_running = True
+        reader_thread_obj = threading.Thread(target=reader_thread_func, daemon=True)
+        reader_thread_obj.start()
+        logger.info("RFID reader started via API")
+        return jsonify({'success': True, 'message': 'Reader started'})
+
+@app.route('/api/reader/stop', methods=['POST'])
+def api_reader_stop():
+    global reader_running
+    with reader_thread_lock:
+        if not reader_running:
+            return jsonify({'success': False, 'message': 'Reader is not running'})
+        try:
+            stop_inventory(reader, address=0x00)
+            reader_running = False
+            logger.info("RFID reader stopped via API")
+            return jsonify({'success': True, 'message': 'Reader stopped'})
+        except Exception as e:
+            logger.error(f"Error stopping reader: {e}")
+            return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/attendance/clear_today', methods=['POST'])
+def api_clear_today_attendance():
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        conn = sqlite3.connect('checkins.db')
+        conn.execute("DELETE FROM attendances WHERE date=?", (today,))
+        conn.execute("DELETE FROM rfid_scan_logs WHERE date(timestamp)=?", (today,))
+        conn.commit()
+        conn.close()
+        logger.info(f"Cleared all attendance data for {today}")
+        return jsonify({'success': True, 'message': f'Cleared data for {today}'})
+    except Exception as e:
+        logger.error(f"Error clearing data: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 # ----- Main Entry Point -----
 if __name__ == '__main__':

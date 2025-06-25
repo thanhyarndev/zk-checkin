@@ -1,0 +1,20 @@
+Server initialized for threading.
+INFO:engineio.server:Server initialized for threading.
+INFO:__main__:Attempting to connect to RFID reader on /dev/cu.usbserial-10...
+INFO:zk:✅ Connected to Ex10 RFID reader
+INFO:__main__:Successfully connected to RFID reader
+INFO:__main__:Employee map loaded: {}
+INFO:__main__:Database initialized successfully
+INFO:__main__:App ready. Use web UI to start/stop reader.
+INFO:__main__:Starting Flask-SocketIO app on http://localhost:3000
+ * Serving Flask app 'app'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:3000
+ * Running on http://192.168.1.18:3000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [25/Jun/2025 10:58:32] "[33mGET /api/attendance HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Jun/2025 10:58:41] "[33mGET /api/config HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Jun/2025 10:58:44] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Jun/2025 11:00:05] "[33mGET /api/attendance HTTP/1.1[0m" 404 -
