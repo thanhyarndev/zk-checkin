@@ -400,11 +400,13 @@ def process_rfid_scan(rfid_uid: str) -> dict:
                 'message': 'No check-in found for today'
             }
         elif today_attendance['check_out_time']:
-            log_scan(rfid_uid, employee_id, "ignored", "Already checked out today")
+            # Update checkout time to latest scan (employee might be leaving now)
+            record_attendance(employee_id, 'checkout')
+            log_scan(rfid_uid, employee_id, "checkout", "Check-out time updated")
             return {
-                'status': 'ignored',
-                'reason': 'already_checked_out',
-                'message': 'Already checked out today'
+                'status': 'success',
+                'action': 'checkout',
+                'message': 'Check-out time updated to latest scan'
             }
         else:
             # Record check-out
@@ -920,14 +922,15 @@ def api_logs():
     logs = conn.execute('''
         SELECT sl.id, sl.rfid_uid, e.name as employee_name, e.employee_code, sl.timestamp, 
                CASE 
-                    WHEN sl.status = 'checkin' THEN 'checkin'
-                    WHEN sl.status = 'checkout' THEN 'checkout'
-                    WHEN sl.status = 'ignored' AND sl.note = 'Already checked in today' THEN 'already_checked_in'
-                    WHEN sl.status = 'ignored' AND sl.note = 'Already checked out today' THEN 'already_checked_out'
-                    WHEN sl.status = 'ignored' AND sl.note = 'No check-in found for today' THEN 'no_checkin'
-                    WHEN sl.status = 'ignored' AND sl.note = 'Recent scan detected' THEN 'recent_scan'
-                    ELSE sl.status
-                END as event_type,
+                   WHEN sl.status = 'checkin' THEN 'checkin'
+                   WHEN sl.status = 'checkout' THEN 'checkout'
+                   WHEN sl.status = 'ignored' AND sl.note = 'Already checked in today' THEN 'already_checked_in'
+                   WHEN sl.status = 'ignored' AND sl.note = 'No check-in found for today' THEN 'no_checkin'
+                   WHEN sl.status = 'ignored' AND sl.note = 'Recent scan detected' THEN 'recent_scan'
+                   WHEN sl.status = 'ignored' AND sl.note = 'Unknown RFID UID' THEN 'unknown_employee'
+                   WHEN sl.status = 'outside_hours' THEN 'outside_hours'
+                   ELSE sl.status
+               END as event_type,
                sl.reader_id as device_id, 'success' as status
         FROM rfid_scan_logs sl
         LEFT JOIN employees e ON sl.employee_id = e.id

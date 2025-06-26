@@ -107,8 +107,6 @@ export default function Logs() {
         return "bg-blue-100 text-blue-800";
       case "already_checked_in":
         return "bg-indigo-100 text-indigo-800";
-      case "already_checked_out":
-        return "bg-pink-100 text-pink-800";
       case "no_checkin":
         return "bg-gray-100 text-gray-800";
       default:
@@ -134,8 +132,6 @@ export default function Logs() {
         return "Recent Scan";
       case "already_checked_in":
         return "Already Checked-in";
-      case "already_checked_out":
-        return "Already Checked-out";
       case "no_checkin":
         return "No Check-in";
       default:
@@ -302,9 +298,6 @@ export default function Logs() {
                   <SelectItem value="recent_scan">Recent Scan</SelectItem>
                   <SelectItem value="already_checked_in">
                     Already Checked-in
-                  </SelectItem>
-                  <SelectItem value="already_checked_out">
-                    Already Checked-out
                   </SelectItem>
                   <SelectItem value="no_checkin">No Check-in</SelectItem>
                 </SelectContent>
