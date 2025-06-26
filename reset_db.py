@@ -111,8 +111,8 @@ def reset_database():
     # Insert default RFID tags
     default_tags = [
         ('ABCD0286', 'Trần Cao Thiên Phước'),
-        ('ABCD0179', 'Nguyễn Thanh Giang'),
-        ('ABCD0127', 'Bùi Hữu Lộc')
+        ('ABCD0114', 'Nguyễn Thanh Giang'),
+        ('ABCD0152', 'Bùi Hữu Lộc')
     ]
     
     for rfid_uid, employee_name in default_tags:
@@ -127,10 +127,10 @@ def reset_database():
     
     # Insert default system configuration
     default_configs = [
-        ('checkin_start', '08:45', 'Giờ bắt đầu check-in (HH:MM)'),
-        ('checkin_end', '09:15', 'Giờ kết thúc check-in (HH:MM)'),
-        ('checkout_start', '17:45', 'Giờ bắt đầu check-out (HH:MM)'),
-        ('checkout_end', '18:15', 'Giờ kết thúc check-out (HH:MM)'),
+        ('checkin_start', '09:00', 'Giờ bắt đầu check-in (HH:MM)'),
+        ('checkin_end', '10:00', 'Giờ kết thúc check-in (HH:MM)'),
+        ('checkout_start', '17:00', 'Giờ bắt đầu check-out (HH:MM)'),
+        ('checkout_end', '18:00', 'Giờ kết thúc check-out (HH:MM)'),
         ('scan_cooldown', '10', 'Thời gian chờ giữa các lần quét (giây)'),
         ('reader_id', 'MAIN_ENTRANCE', 'ID của RFID reader')
     ]
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     
     if confirm.lower() in ['y', 'yes']:
         try:
-    reset_database() 
+            reset_database() 
         except Exception as e:
             print(f"❌ Error resetting database: {e}")
     else:
