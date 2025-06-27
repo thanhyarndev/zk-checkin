@@ -920,10 +920,14 @@ def api_logs():
     logs = conn.execute('''
         SELECT sl.id, sl.rfid_uid, e.name as employee_name, e.employee_code, sl.timestamp, 
                CASE 
-                   WHEN sl.status = 'check_in' THEN 'check-in'
-                   WHEN sl.status = 'check_out' THEN 'check-out'
-                   ELSE sl.status
-               END as event_type,
+                    WHEN sl.status = 'checkin' THEN 'checkin'
+                    WHEN sl.status = 'checkout' THEN 'checkout'
+                    WHEN sl.status = 'ignored' AND sl.note = 'Already checked in today' THEN 'already_checked_in'
+                    WHEN sl.status = 'ignored' AND sl.note = 'Already checked out today' THEN 'already_checked_out'
+                    WHEN sl.status = 'ignored' AND sl.note = 'No check-in found for today' THEN 'no_checkin'
+                    WHEN sl.status = 'ignored' AND sl.note = 'Recent scan detected' THEN 'recent_scan'
+                    ELSE sl.status
+                END as event_type,
                sl.reader_id as device_id, 'success' as status
         FROM rfid_scan_logs sl
         LEFT JOIN employees e ON sl.employee_id = e.id

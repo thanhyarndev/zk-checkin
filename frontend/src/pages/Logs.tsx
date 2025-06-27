@@ -253,8 +253,9 @@ export default function Logs() {
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
               {
-                logs.filter((log) => log.event_type.toLowerCase() === "ignored")
-                  .length
+                logs.filter(
+                  (log) => log.event_type.toLowerCase() === "recent_scan"
+                ).length
               }
             </div>
           </CardContent>
